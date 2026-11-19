@@ -1,81 +1,81 @@
 # chat-demo
 
-English | [简体中文](README.zh-CN.md)
+[English](README.md) | 简体中文
 
-A Rust + Tauri desktop / Android wrapper around the DeepSeek API static chat demo ([deepseek-ai/deepseek-chat-demo](https://github.com/deepseek-ai/deepseek-chat-demo)). No build or configuration changes are required: download, install, and enter your API key in Settings.
+基于 Rust + Tauri 对 DeepSeek API 静态聊天示例（[deepseek-ai/deepseek-chat-demo](https://github.com/deepseek-ai/deepseek-chat-demo)）的桌面 / Android 封装。无需自行构建或改配置，下载安装后在设置中填入 API Key 即可使用。
 
-## Download and install
+## 下载安装
 
-Release builds are available as Windows installers (NSIS / MSI) and an Android APK:
+Release 提供 Windows 安装包（NSIS / MSI）与 Android APK：
 
-- **Windows**: download the NSIS / MSI installer and run it. Windows 10/11 is required. WebView2 is preinstalled on Windows 11; most Windows 10 devices already have it via Edge / Windows Update, and the installer downloads it when missing.
-- **Android**: download and install the APK. Android 8.0 (API 26) or later is required; allow installation from unknown sources on first install.
-- **First use**: open Settings and enter your DeepSeek API key. The key is stored only in the local WebView localStorage (plain text; the OS keychain slot is not implemented yet) and is sent to the configured API service with requests. See [Data](#data).
+- **Windows**：下载 NSIS / MSI 安装包并双击安装。需要 Windows 10/11；WebView2 在 Win11 预装，Win10 多数已随 Edge / Windows Update 安装，缺失时安装包会自动下载。
+- **Android**：下载 APK 安装，最低 Android 8.0（API 26）；首次安装需允许“未知来源”。
+- **首次使用**：打开设置填入 DeepSeek API Key。Key 只保存在本机 WebView 的 localStorage（明文，未接系统钥匙串），发起对话时会随请求发送给配置的 API 服务；详见[数据](#数据)。
 
-> The Windows installer is not code-signed, so SmartScreen may warn; on Android, allow installation from unknown sources.
+> Windows 安装包未做代码签名，SmartScreen 可能提示风险；Android 首次安装需允许“未知来源”。
 
-## Project structure
+## 项目结构
 
-#### Directory layout
+#### 目录
 
 ```text
-package.json / pnpm-lock.yaml   Frontend dependencies and scripts
-rust-toolchain.toml             Pinned Rust toolchain
-web/                            Frontend (React + TypeScript)
-  app/                          Layout, theme, and viewport handling
-  components/                   Chat, settings, and Markdown UI
-  platform/                     Native module slots: contracts, defaults, build-time switch
-  i18n/                         English and Chinese translations
+package.json / pnpm-lock.yaml   前端依赖与脚本
+rust-toolchain.toml             锁定的 Rust 工具链
+web/                            前端（React + TypeScript）
+  app/                          应用布局、主题与视口
+  components/                   聊天、设置、Markdown 等界面组件
+  platform/                     原生模块槽位：契约、默认实现、构建期切换
+  i18n/                         中英文文案
   services/
-    api/                        API requests, SSE, and protocol types
-    chat/                       Conversations, message branches, local storage, history import/export
-    markdown/                   Markdown parsing, syntax highlighting, and diagrams
-    speech/                     Audio recording and read-aloud playback
-  utils/                        Shared utilities
+    api/                        API 请求、SSE 与协议类型
+    chat/                       会话、消息分支、本地存储与历史导入导出
+    markdown/                   Markdown 解析、代码高亮与图表
+    speech/                     录音与朗读
+  utils/                        通用工具
 
-src-tauri/                      Native shell (desktop + Android)
-  Cargo.toml / Cargo.lock       Rust dependencies and module features
-  src/modules/                  Rust module slots, one Cargo feature per module
-  tauri.conf.json               Window, CSP, bundle targets
-  capabilities/                 IPC permissions
-  icons/                        App icons per platform
+src-tauri/                      原生外壳（桌面 + Android）
+  Cargo.toml / Cargo.lock       Rust 依赖与模块 feature
+  src/modules/                  Rust 模块槽位，一个模块一个 Cargo feature
+  tauri.conf.json               窗口、CSP、打包目标
+  capabilities/                 IPC 权限
+  icons/                        各平台应用图标
 
-docs/                           Tauri, platform-module, and Android documentation
-scripts/                        Android permission patch and CI helpers
-.github/workflows/              Desktop, Android, and GitHub Pages CI
+docs/                           Tauri、平台模块与 Android 文档
+scripts/                        Android 权限补丁与 CI 辅助脚本
+.github/workflows/              桌面、Android 与 GitHub Pages CI
 ```
 
-#### Tech stack
+#### 技术栈细节
 
-- **Frontend**: React 18 + TypeScript, bundled by rspack; state via zustand; Markdown through micromark / mdast, syntax highlighting with Prism, math with KaTeX, diagrams with Mermaid; IndexedDB (idb) for local storage and fflate for ZIP history import/export.
-- **Desktop / Android**: Tauri 2 (Rust). Desktop uses the system WebView2 with no bundled runtime; the shell is single-instance, writes `startup.log` and shows a native dialog on startup failure, and places the WebView2 data folder next to the executable when installed on a non-system drive.
-- **Native modules**: only `system` (opening external links) is implemented. `secrets`, `http`, `storage`, `archive`, and `search` are contracts / placeholders; wired modules fall back to the Web implementation automatically, and unwired ones stay on the Web side. See [Platform module slots](docs/PLATFORM_MODULES.md) for the table.
-- **Versions**: Rust 1.99.1 (pinned by `rust-toolchain.toml`), `tauri` 2.11.5, `@tauri-apps/api` 2.11.1, and `@tauri-apps/cli` 2.11.3; `Cargo.lock` and `pnpm-lock.yaml` pin the dependency graph.
+- **前端**：React 18 + TypeScript，rspack 打包；状态管理 zustand；Markdown 使用 micromark / mdast，代码高亮 Prism，公式 KaTeX，图表 Mermaid；本地存储 IndexedDB（idb），历史导入导出用 fflate 处理 ZIP。
+- **桌面 / Android**：Tauri 2（Rust）；桌面使用系统 WebView2，不随包运行时；单实例，启动失败写 `startup.log` 并弹原生错误框；程序装在非系统盘时 WebView2 数据目录落到同卷目录。
+- **原生模块**：只有 `system`（打开外链）已实现；`secrets`、`http`、`storage`、`archive`、`search` 目前是契约 / 占位，已接线的模块会自动回落到 Web 实现，未接线的模块保持 Web 实现。完整表格见[原生模块槽位](docs/PLATFORM_MODULES.md)。
+- **版本**：Rust 1.99.1（`rust-toolchain.toml` 固定）、`tauri` 2.11.5、`@tauri-apps/api` 2.11.1、`@tauri-apps/cli` 2.11.3；`Cargo.lock` 与 `pnpm-lock.yaml` 用于锁定依赖。
 
-#### Features
+#### 功能
 
-- Multiple conversations with automatic titles, renaming, and deletion; edit prompts, regenerate replies, and switch between message branches.
-- Streaming replies, deep thinking, smart search, link reading, and source citations; stop generation or continue eligible replies.
-- Upload, paste, or drag and drop attachments; voice input and read-aloud replies. A live audio spectrum appears in the first row of the input area while recording on mobile.
-- Markdown, syntax highlighting, KaTeX math, and Mermaid diagrams.
-- Simplified Chinese and English, light and dark themes, mobile layouts, location settings, and chat history import and export.
+- 多会话、自动标题、重命名与删除；编辑提问、重新生成和切换消息分支。
+- 流式回答、深度思考、智能搜索、链接阅读与来源引用；支持停止和符合条件的继续生成。
+- 附件上传、粘贴与拖拽，语音输入和回复朗读；移动端录音时输入框首行显示实时频谱。
+- Markdown、代码高亮、KaTeX 公式和 Mermaid 图表。
+- 简体中文与英文、浅色与深色主题、移动端布局、位置设置、历史导入导出。
 
-#### Data
+#### 数据
 
-The API key and settings are stored in the WebView's localStorage (the browser profile on the Web build, the WebView2 profile on desktop). The native OS keychain slot is not implemented yet, so the key is stored as plain text. Conversations and original attachments are stored in IndexedDB, isolated by browser profile and site origin. Sending messages, uploading attachments, and using speech features sends the relevant content to the configured API service.
+API Key 和设置保存在 WebView 的 localStorage（Web 构建是浏览器 profile，桌面端是 WebView2 profile）。原生系统钥匙串槽位尚未实现，因此 Key 以明文保存。会话及附件原件保存在 IndexedDB，本地数据按浏览器用户配置和站点源（origin）隔离。发送对话、上传附件和使用语音功能时，相应内容会提交给配置的 API 服务。
 
-History import and export in Settings use ZIP archives. After confirmation and successful validation, importing replaces all local conversations and attachments. Exports include conversations and locally available original images, but exclude the API key, settings, and original non-image attachments. See the [history import/export documentation (Chinese)](web/services/chat/history/README.md) for the archive format and preservation details.
+设置中的历史导入导出使用 ZIP 格式。导入会在确认并校验成功后替换全部本地会话和附件；导出包含会话与本地可用的图片原件，不包含 API Key、设置或非图片附件原件。格式与保留范围见[历史导入导出](web/services/chat/history/README.md)。
 
-Settings → Data → Delete all chats clears all local conversations, original attachments, and unsent drafts after confirmation. It stops ongoing replies and returns to a new chat. The API key and other settings are preserved; files already uploaded to the API service are not deleted.
+设置 → 数据管理 → 删除所有对话，会在确认后清空全部本地会话、附件原件和未发送的草稿，停止正在生成的回复并回到新对话。API Key 和其他设置保留，已上传到 API 服务的文件不受影响。
 
-## Build from source
+## 构建与编译
 
-| Target | Requirements |
+| 目标 | 需要 |
 |---|---|
-| Common | Node.js 22.12+, pnpm 10 |
-| Windows | Rust 1.99.1 (pinned by `rust-toolchain.toml`), MSVC C++ toolchain, WebView2 |
-| Linux | Rust, `libwebkit2gtk-4.1-dev`, `librsvg2-dev`, `libdbus-1-dev`, `patchelf` |
-| Android | JDK 17, Android SDK 34, NDK 26, and the four Rust Android targets |
+| 通用 | Node.js 22.12+、pnpm 10 |
+| Windows | Rust 1.99.1（`rust-toolchain.toml` 固定）、MSVC C++ 工具链、WebView2 |
+| Linux | Rust、`libwebkit2gtk-4.1-dev`、`librsvg2-dev`、`libdbus-1-dev`、`patchelf` |
+| Android | JDK 17、Android SDK 34、NDK 26、四个 Rust Android target |
 
 #### Windows
 
@@ -84,7 +84,7 @@ pnpm install
 pnpm tauri:build
 ```
 
-Artifacts are written to `src-tauri/target/release/bundle/`: `nsis/*.exe` and `msi/*.msi`. The first build downloads NSIS / WiX over the network; use `pnpm tauri:dev` for desktop development.
+产物在 `src-tauri/target/release/bundle/`：`nsis/*.exe` 与 `msi/*.msi`。首次构建会联网下载 NSIS / WiX；桌面调试用 `pnpm tauri:dev`。
 
 #### Linux
 
@@ -95,7 +95,7 @@ pnpm install
 pnpm exec tauri build --bundles deb,rpm
 ```
 
-Artifacts are written to `src-tauri/target/release/bundle/deb/` and `rpm/`. Without `--bundles`, the build also attempts an AppImage, which needs extra tooling; specifying the bundles explicitly is recommended.
+产物在 `src-tauri/target/release/bundle/deb/` 与 `rpm/`。不指定 `--bundles` 时还会尝试 AppImage，需要额外的打包工具，建议显式指定。
 
 #### Android
 
@@ -105,34 +105,34 @@ pnpm tauri:android:init
 pnpm tauri:android:build
 ```
 
-`tauri:android:init` runs `scripts/patch-android.mjs` to add `RECORD_AUDIO` / `INTERNET` automatically; the APK is written to `src-tauri/gen/android/app/build/outputs/apk/universal/release/`. For Google Play, build an AAB with `pnpm tauri android build --aab`; see [Android packaging](docs/ANDROID.md) for signing.
+`tauri:android:init` 会自动执行 `scripts/patch-android.mjs` 补 `RECORD_AUDIO` / `INTERNET`；APK 在 `src-tauri/gen/android/app/build/outputs/apk/universal/release/`。上架 Google Play 用 `pnpm tauri android build --aab`，签名配置见 [Android 打包](docs/ANDROID.md)。
 
-## Development
+## 开发
 
-| Command                    | Description                         |
-| -------------------------- | ----------------------------------- |
-| `pnpm install`             | Install dependencies                |
-| `pnpm dev`                 | Start the Web dev server (8090)     |
-| `pnpm build`               | Build the static site into `dist/`  |
-| `pnpm build:tauri`         | Build the frontend for the shell    |
-| `pnpm tauri:dev`           | Desktop dev (rspack + window)       |
-| `pnpm tauri:build`         | Desktop installers                  |
-| `pnpm tauri:android:init`  | Generate the Android project        |
-| `pnpm tauri:android:build` | Android APK                         |
-| `pnpm type`                | Run TypeScript type checks          |
-| `pnpm lint`                | Lint with oxlint                    |
-| `pnpm format`              | Format with oxfmt                   |
+| 命令                       | 用途                             |
+| -------------------------- | -------------------------------- |
+| `pnpm install`             | 安装依赖                         |
+| `pnpm dev`                 | 启动 Web 开发服务器（8090）      |
+| `pnpm build`               | 构建静态站点到 `dist/`           |
+| `pnpm build:tauri`         | 构建给原生外壳加载的前端产物     |
+| `pnpm tauri:dev`           | 桌面端开发（rspack + 窗口）      |
+| `pnpm tauri:build`         | 桌面端安装包                     |
+| `pnpm tauri:android:init`  | 生成 Android 工程（首次）        |
+| `pnpm tauri:android:build` | Android APK                      |
+| `pnpm type`                | TypeScript 类型检查              |
+| `pnpm lint`                | oxlint 检查                      |
+| `pnpm format`              | oxfmt 格式化                     |
 
-[rspack.config.ts](rspack.config.ts) uses `https://api.deepseek.com` by default. Use `createConfig({ apiOrigin, target, nativeModules, devServer })` to customize the API origin, the build target, and the native module switches.
+[rspack.config.ts](rspack.config.ts) 默认连接 `https://api.deepseek.com`。`createConfig({ apiOrigin, target, nativeModules, devServer })` 支持自定义 API 地址、打包目标和原生模块开关。
 
-Chat uses `deepseek-flash` by default through Anthropic-compatible Messages / Files APIs; speech features use ASR / TTS endpoints. Requests include extensions for search, link reading, titles, and `latest_reminder`, so the configured service must support the corresponding capabilities. Supported attachment formats are determined by server-side validation.
+聊天默认使用 `deepseek-flash`，通过 Anthropic 兼容的 Messages / Files API 通信；语音使用 ASR / TTS 接口。请求使用搜索、链接阅读、标题和 `latest_reminder` 等扩展，接入服务需支持相应能力。附件实际支持的格式以服务端校验为准。
 
 ## CI
 
-- `.github/workflows/tauri-desktop.yml`: Windows NSIS/MSI with a startup smoke test, macOS universal DMG, and Linux deb/rpm.
-- `.github/workflows/tauri-android.yml`: Android APK.
-- `.github/workflows/pages.yml`: static site deployed to GitHub Pages.
+- `.github/workflows/tauri-desktop.yml`：Windows NSIS/MSI（含启动冒烟）、macOS universal DMG、Linux deb/rpm。
+- `.github/workflows/tauri-android.yml`：Android APK。
+- `.github/workflows/pages.yml`：静态站点发布到 GitHub Pages。
 
-## License
+## 许可证
 
-[MIT](LICENSE). The build copies the license to `dist/LICENSE`; include it when distributing the app. Third-party dependencies are subject to their own licenses.
+[MIT](LICENSE)。构建会将许可证复制到 `dist/LICENSE`，分发时请一并保留；第三方依赖遵循各自的许可证。
