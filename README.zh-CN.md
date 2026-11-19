@@ -1,8 +1,9 @@
-# chat-demo
+# Deskchat
+Deskchat是一款使用Rust Tauri框架，对`deepseek-ai/deepseek-chat-demo`的第三方封装应用。无需配置后端，二进制可直接运行。
 
-[English](README.md) | 简体中文
+[English](README.en.md) | 简体中文
 
-基于 Rust + Tauri 对 DeepSeek API 静态聊天示例（[deepseek-ai/deepseek-chat-demo](https://github.com/deepseek-ai/deepseek-chat-demo)）的桌面 / Android 封装。无需自行构建或改配置，下载安装后在设置中填入 API Key 即可使用。
+基于 Rust + Tauri 对 DeepSeek API 静态聊天示例（[deepseek-ai/deepseek-chat-demo](https://github.com/deepseek-ai/deepseek-chat-demo)）的Windows / Android 封装。无需自行构建或改配置，下载安装后在设置中填入 API Key 即可使用。
 
 ## 下载安装
 
@@ -129,7 +130,7 @@ pnpm tauri:android:build
 
 ## CI
 
-- `.github/workflows/tauri-desktop.yml`：Windows NSIS/MSI（含启动冒烟）、macOS universal DMG、Linux deb/rpm。
+- `.github/workflows/tauri-desktop.yml`：Windows NSIS/MSI（含启动测试）、macOS universal DMG、Linux deb/rpm。
 - `.github/workflows/tauri-android.yml`：Android APK。
 - `.github/workflows/pages.yml`：静态站点发布到 GitHub Pages。
 

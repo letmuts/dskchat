@@ -1,8 +1,10 @@
-# chat-demo
+# Deskchat
 
-English | [简体中文](README.zh-CN.md)
+Deskchat is a third-party wrapper around `deepseek-ai/deepseek-chat-demo` built on the Rust Tauri framework. No backend configuration is required; the binary runs as-is.
 
-A Rust + Tauri desktop / Android wrapper around the DeepSeek API static chat demo ([deepseek-ai/deepseek-chat-demo](https://github.com/deepseek-ai/deepseek-chat-demo)). No build or configuration changes are required: download, install, and enter your API key in Settings.
+[简体中文](README.zh-CN.md) | English
+
+A Rust + Tauri Windows / Android wrapper around the DeepSeek API static chat demo ([deepseek-ai/deepseek-chat-demo](https://github.com/deepseek-ai/deepseek-chat-demo)). No build or configuration changes are required: download, install, and enter your API key in Settings.
 
 ## Download and install
 
@@ -10,7 +12,7 @@ Release builds are available as Windows installers (NSIS / MSI) and an Android A
 
 - **Windows**: download the NSIS / MSI installer and run it. Windows 10/11 is required. WebView2 is preinstalled on Windows 11; most Windows 10 devices already have it via Edge / Windows Update, and the installer downloads it when missing.
 - **Android**: download and install the APK. Android 8.0 (API 26) or later is required; allow installation from unknown sources on first install.
-- **First use**: open Settings and enter your DeepSeek API key. The key is stored only in the local WebView localStorage (plain text; the OS keychain slot is not implemented yet) and is sent to the configured API service with requests. See [Data](#data).
+- **First use**: open Settings and enter your DeepSeek API key. The key is stored only in the local WebView localStorage (plain text; the OS keychain slot is not implemented yet) and is sent to the configured API service along with chat requests. See [Data](#data).
 
 > The Windows installer is not code-signed, so SmartScreen may warn; on Android, allow installation from unknown sources.
 
@@ -45,10 +47,10 @@ scripts/                        Android permission patch and CI helpers
 .github/workflows/              Desktop, Android, and GitHub Pages CI
 ```
 
-#### Tech stack
+#### Tech stack details
 
 - **Frontend**: React 18 + TypeScript, bundled by rspack; state via zustand; Markdown through micromark / mdast, syntax highlighting with Prism, math with KaTeX, diagrams with Mermaid; IndexedDB (idb) for local storage and fflate for ZIP history import/export.
-- **Desktop / Android**: Tauri 2 (Rust). Desktop uses the system WebView2 with no bundled runtime; the shell is single-instance, writes `startup.log` and shows a native dialog on startup failure, and places the WebView2 data folder next to the executable when installed on a non-system drive.
+- **Desktop / Android**: Tauri 2 (Rust). Desktop uses the system WebView2 with no bundled runtime; the shell is single-instance, writes `startup.log` and shows a native error dialog on startup failure, and moves the WebView2 data folder to a directory on the same volume when the program is installed on a non-system drive.
 - **Native modules**: only `system` (opening external links) is implemented. `secrets`, `http`, `storage`, `archive`, and `search` are contracts / placeholders; wired modules fall back to the Web implementation automatically, and unwired ones stay on the Web side. See [Platform module slots](docs/PLATFORM_MODULES.md) for the table.
 - **Versions**: Rust 1.99.1 (pinned by `rust-toolchain.toml`), `tauri` 2.11.5, `@tauri-apps/api` 2.11.1, and `@tauri-apps/cli` 2.11.3; `Cargo.lock` and `pnpm-lock.yaml` pin the dependency graph.
 

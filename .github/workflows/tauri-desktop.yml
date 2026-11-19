@@ -104,7 +104,7 @@ jobs:
       - name: Build desktop bundle
         run: pnpm exec tauri build ${{ matrix.args }} --bundles ${{ matrix.bundles }}
 
-      # 先上传产物，冒烟失败时也能拿到安装包用于排查
+      # 先上传产物，测试失败时也能拿到安装包用于排查
       - name: Upload installers
         uses: actions/upload-artifact@v4
         with:
@@ -112,7 +112,7 @@ jobs:
           if-no-files-found: error
           path: ${{ matrix.artifacts }}
 
-      # 只在 Windows 上做启动冒烟：进程存活、主窗口标题正确、没有 startup.log
+      # 只在 Windows 上做启动测试：进程存活、主窗口标题正确、没有 startup.log
       - name: Smoke test (Windows)
         if: matrix.platform == 'windows-latest'
         shell: pwsh

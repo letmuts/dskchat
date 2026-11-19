@@ -74,11 +74,11 @@ pnpm tauri:android:build     # 出 APK
 
 **为什么锁**：`tauri` 2.12.x 曾在本机（Windows 10 22H2 + WebView2 157）复现 `msedgewebview2.exe` 启动即崩——事件日志为 `msedge.dll` + 异常码 `0x80000003`（Chromium 的 `IMMEDIATE_CRASH`），Tauri 侧表现为 `WebView2 error: HRESULT(0x8000FFFF)`。后续定位到本机启动失败的根因是 **WebView2 用户数据目录与 exe 跨卷**（见上节「数据目录兜底」）；版本锁保留为保险，不应视为唯一根因。
 
-需要说明的是：`wry` 0.55.1 与 0.57.3 的 WebView2 环境创建代码（`CreateCoreWebView2EnvironmentWithOptions`、默认 `--disable-features`）逐行一致，因此版本差异未必是唯一原因；**升级前必须跑 CI 的 Windows 启动冒烟**，不要把“锁版本”当成根因结论。
+需要说明的是：`wry` 0.55.1 与 0.57.3 的 WebView2 环境创建代码（`CreateCoreWebView2EnvironmentWithOptions`、默认 `--disable-features`）逐行一致，因此版本差异未必是唯一原因；**升级前必须跑 CI 的 Windows 启动测试**，不要把“锁版本”当成根因结论。
 
 **注意**：
 
-- `Cargo.lock` 必须提交，**不要随意 `cargo update`**；升级可能改动 `wry` / `tao` / `webview2-com` 等传递依赖，升级前请跑 CI 的 Windows 启动冒烟。
+- `Cargo.lock` 必须提交，**不要随意 `cargo update`**；升级可能改动 `wry` / `tao` / `webview2-com` 等传递依赖，升级前请跑 CI 的 Windows 启动测试。
 - JS 侧 `@tauri-apps/api`、`@tauri-apps/cli` 与 Rust `tauri` 保持同一 minor（2.11.x），避免 codegen/ACL 漂移。
 
 ## 启动失败诊断
@@ -122,8 +122,8 @@ pnpm tauri:android:build     # 出 APK
 
 - 矩阵：Windows（NSIS + MSI）、macOS universal（arm64 + x86_64 的 dmg）、Linux（deb + rpm）；
 - `cargo metadata --locked` 校验锁文件，漂移直接失败；
-- 先上传安装包，再做 Windows 启动冒烟：进程存活、主窗口标题为 `Chat Demo`、且没有新增 `startup.log` 才算通过；
-- 冒烟结束时用 `taskkill /T` 清理整个进程树，避免残留进程影响下一次运行。
+- 先上传安装包，再做 Windows 启动测试：进程存活、主窗口标题为 `Chat Demo`、且没有新增 `startup.log` 才算通过；
+- 测试结束时用 `taskkill /T` 清理整个进程树，避免残留进程影响下一次运行。
 
 ## 排错
 

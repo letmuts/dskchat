@@ -20,7 +20,7 @@ tauri-build = { version = "=2.6.3", features = [] }
 # Windows WebView 栈跟随 note-gen 已验证的组合：tauri 2.11.x / wry 0.55.1 /
 # tao 0.35.3 / webview2-com 0.38.x。tauri 2.12.x 曾在 Windows 10 22H2 +
 # WebView2 157 上复现 msedgewebview2.exe 启动即崩（msedge.dll / 0x80000003），
-# 升级前请整体评估，并确认 CI 的 Windows 启动冒烟通过。
+# 升级前请整体评估，并确认 CI 的 Windows 启动测试通过。
 #
 # 运行时策略：不随包 WebView2（不使用 fixedRuntime）。桌面端使用系统 Evergreen
 # 运行时；安装器默认 downloadBootstrapper，缺少运行时会自动下载安装。
