@@ -118,14 +118,14 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $exe = 'src-tauri/target/release/chat-demo.exe'
-          $log = Join-Path $env:LOCALAPPDATA 'com.deepseek.chatdemo\startup.log'
+          $exe = 'src-tauri/target/release/dskchat.exe'
+          $log = Join-Path $env:LOCALAPPDATA 'com.letmut.dskchat\startup.log'
           if (-not (Test-Path $exe)) { throw "missing $exe" }
-          Get-Process chat-demo -ErrorAction SilentlyContinue | Stop-Process -Force
+          Get-Process dskchat -ErrorAction SilentlyContinue | Stop-Process -Force
           Remove-Item $log -ErrorAction SilentlyContinue
           $process = Start-Process -FilePath $exe -PassThru `
-            -RedirectStandardOutput "$env:TEMP\chat-demo.out" `
-            -RedirectStandardError "$env:TEMP\chat-demo.err"
+            -RedirectStandardOutput "$env:TEMP\dskchat.out" `
+            -RedirectStandardError "$env:TEMP\dskchat.err"
           try {
             $deadline = (Get-Date).AddSeconds(30)
             $title = ''
@@ -133,10 +133,10 @@ jobs:
               if ($process.HasExited) { throw "app exited early with code $($process.ExitCode)" }
               $window = Get-Process -Id $process.Id -ErrorAction SilentlyContinue
               if ($window) { $title = $window.MainWindowTitle }
-              if ($title -eq 'Chat Demo') { break }
+              if ($title -eq 'dskchat') { break }
               Start-Sleep -Seconds 1
             }
-            if ($title -ne 'Chat Demo') {
+            if ($title -ne 'dskchat') {
               if (Test-Path $log) { Get-Content $log -Tail 50 }
               throw "main window did not appear within 30s (title: '$title')"
             }

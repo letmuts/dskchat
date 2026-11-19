@@ -91,7 +91,7 @@ fn record_failure(message: &str, show_dialog: bool) {
             let _ = writeln!(file, "[{}] {message}", unix_timestamp());
         }
     }
-    eprintln!("Chat Demo failed to start: {message}");
+    eprintln!("dskchat.exe failed to start: {message}");
     #[cfg(windows)]
     if show_dialog {
         show_native_error(message, log_path.as_deref());
@@ -108,7 +108,7 @@ fn startup_log_path() -> Option<std::path::PathBuf> {
                 .ok()
                 .and_then(|exe| exe.parent().map(|parent| parent.to_path_buf()))
         })?;
-    let dir = base.join("com.deepseek.chatdemo");
+    let dir = base.join("com.letmut.dskchat");
     std::fs::create_dir_all(&dir).ok()?;
     Some(dir.join("startup.log"))
 }
@@ -163,7 +163,7 @@ fn show_native_error(message: &str, log_path: Option<&std::path::Path>) {
         None => message.to_string(),
     };
     let text: Vec<u16> = text.encode_utf16().chain(std::iter::once(0)).collect();
-    let caption: Vec<u16> = "Chat Demo 启动失败"
+    let caption: Vec<u16> = "dskchat.exe 启动失败"
         .encode_utf16()
         .chain(std::iter::once(0))
         .collect();

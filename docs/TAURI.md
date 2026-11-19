@@ -58,7 +58,7 @@ pnpm tauri:android:build     # 出 APK
 
 桌面端已接入 `tauri-plugin-single-instance`：重复双击只唤起已有窗口，不会开出多个进程争用同一个 WebView2 用户数据目录。
 
-**数据目录兜底**：WebView2 默认用户数据目录是 `%LOCALAPPDATA%\com.deepseek.chatdemo`。本机实测：当程序装在非系统盘（如 `D:\...`）而数据目录在 `C:` 时，WebView2 环境创建会挂起（窗口一直不出现）。`src-tauri/src/lib.rs` 的 `prepare_webview_data_folder()` 会在两者不同卷时，把数据目录改到 exe 同卷的 `.webview2-data/`；正常装在系统盘时仍使用 `%LOCALAPPDATA%`。
+**数据目录兜底**：WebView2 默认用户数据目录是 `%LOCALAPPDATA%\com.letmut.dskchat`。本机实测：当程序装在非系统盘（如 `D:\...`）而数据目录在 `C:` 时，WebView2 环境创建会挂起（窗口一直不出现）。`src-tauri/src/lib.rs` 的 `prepare_webview_data_folder()` 会在两者不同卷时，把数据目录改到 exe 同卷的 `.webview2-data/`；正常装在系统盘时仍使用 `%LOCALAPPDATA%`。
 
 ## 版本锁
 
@@ -85,7 +85,7 @@ pnpm tauri:android:build     # 出 APK
 
 启动失败不再静默退出：
 
-- 失败信息写入 `%LOCALAPPDATA%\com.deepseek.chatdemo\startup.log`（release 也会写）；
+- 失败信息写入 `%LOCALAPPDATA%\com.letmut.dskchat\startup.log`（release 也会写）；
 - Windows 上同时弹出原生错误框，提示日志位置；
 - panic 会被记录（release），主线程 panic 还会弹框；`[profile.release]` 已不再使用 `panic = "abort"`。
 
@@ -122,7 +122,7 @@ pnpm tauri:android:build     # 出 APK
 
 - 矩阵：Windows（NSIS + MSI）、macOS universal（arm64 + x86_64 的 dmg）、Linux（deb + rpm）；
 - `cargo metadata --locked` 校验锁文件，漂移直接失败；
-- 先上传安装包，再做 Windows 启动测试：进程存活、主窗口标题为 `Chat Demo`、且没有新增 `startup.log` 才算通过；
+- 先上传安装包，再做 Windows 启动测试：进程存活、主窗口标题为 `dskchat`、且没有新增 `startup.log` 才算通过；
 - 测试结束时用 `taskkill /T` 清理整个进程树，避免残留进程影响下一次运行。
 
 ## 排错
@@ -133,6 +133,6 @@ pnpm tauri:android:build     # 出 APK
 | 接口全部失败、控制台 CSP 报错 | `connect-src` 少了域名 |
 | 语音按钮不可用 | 麦克风权限未授予；`isSecureContext` 为 false |
 | `cargo check` 卡在下载 | 首次编译 Tauri 依赖较重，属于正常 |
-| 启动即退出 | 看 `%LOCALAPPDATA%\com.deepseek.chatdemo\startup.log`；Windows 还会弹错误框 |
+| 启动即退出 | 看 `%LOCALAPPDATA%\com.letmut.dskchat\startup.log`；Windows 还会弹错误框 |
 | 事件日志出现 `msedgewebview2.exe` / `msedge.dll` / `0x80000003` | WebView2 内核启动失败：先升级/重装系统 WebView2；仍复现则抓 dump，不要只靠换版本 |
 | `tauri build` 报锁文件需要更新 | 说明 `Cargo.lock` 与 `Cargo.toml` 不一致；本地 `cargo update` 后提交锁文件，CI 用 `cargo metadata --locked` 校验 |

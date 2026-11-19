@@ -1,5 +1,5 @@
-# Deskchat
-Deskchat是一款使用Rust Tauri框架，对`deepseek-ai/deepseek-chat-demo`的第三方封装应用。无需配置后端，二进制可直接运行。
+# dskchat
+dskchat是一款基于 Rust + Tauri 2 的非官方 DeepSeek 客户端。Windows 安装包与 Android APK 开箱即用，无需后端、无需构建，填入 API Key 即可对话。拥有与原版deepseek app/网页版对话几乎一样的本地存储、Markdown / KaTeX / Mermaid、语音输入与朗读、历史导入导出等功能。
 
 [English](README.en.md) | 简体中文
 

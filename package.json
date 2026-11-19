@@ -1,7 +1,7 @@
 {
-  "name": "chat-demo",
+  "name": "dskchat",
   "version": "0.1.1",
-  "description": "基于 DeepSeek API 的静态聊天示例。",
+  "description": "dskchat：基于 DeepSeek API 的桌面聊天客户端。",
   "license": "MIT",
   "private": true,
   "type": "module",

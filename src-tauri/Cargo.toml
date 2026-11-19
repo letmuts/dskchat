@@ -1,7 +1,7 @@
 [package]
-name = "chat-demo"
+name = "dskchat"
 version = "0.1.1"
-description = "DeepSeek API chat demo shell"
+description = "dskchat — DeepSeek API chat shell"
 authors = ["DeepSeek"]
 license = "MIT"
 edition = "2021"
@@ -9,7 +9,7 @@ rust-version = "1.77.2"
 
 [lib]
 # 桌面用 rlib，Android/iOS 需要 cdylib/staticlib
-name = "chat_demo_lib"
+name = "dskchat_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

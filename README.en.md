@@ -1,8 +1,8 @@
-# Deskchat
+# dskchat
 
-Deskchat is a third-party wrapper around `deepseek-ai/deepseek-chat-demo` built on the Rust Tauri framework. No backend configuration is required; the binary runs as-is.
+dskchat is a third-party wrapper around `deepseek-ai/deepseek-chat-demo` built on the Rust Tauri framework. No backend configuration is required; the binary runs as-is.
 
-[简体中文](README.zh-CN.md) | English
+[简体中文](README.md) | English
 
 A Rust + Tauri Windows / Android wrapper around the DeepSeek API static chat demo ([deepseek-ai/deepseek-chat-demo](https://github.com/deepseek-ai/deepseek-chat-demo)). No build or configuration changes are required: download, install, and enter your API key in Settings.
 

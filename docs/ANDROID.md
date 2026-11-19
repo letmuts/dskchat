@@ -56,7 +56,7 @@ pnpm tauri:android:build     # 生成 APK
 ## 签名与上架
 
 ```sh
-keytool -genkey -v -keystore release.keystore -alias chatdemo -keyalg RSA -keysize 2048 -validity 10000
+keytool -genkey -v -keystore release.keystore -alias dskchat -keyalg RSA -keysize 2048 -validity 10000
 ```
 
 在 `gen/android/app/build.gradle.kts` 里配置 `signingConfigs.release`，然后：
