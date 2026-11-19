@@ -65,6 +65,18 @@ scripts/                        Android 权限补丁与 CI 辅助脚本
 
 API Key 和设置保存在 WebView 的 localStorage（Web 构建是浏览器 profile，桌面端是 WebView2 profile）。原生系统钥匙串槽位尚未实现，因此 Key 以明文保存。会话及附件原件保存在 IndexedDB，本地数据按浏览器用户配置和站点源（origin）隔离。发送对话、上传附件和使用语音功能时，相应内容会提交给配置的 API 服务。
 
+桌面端（Windows）的落盘位置由 `identifier` 推导，目录名即 `com.letmuts.dskchat`：
+
+| 路径 | 内容 | 何时出现 |
+|---|---|---|
+| `%LOCALAPPDATA%\com.letmuts.dskchat\` | WebView2 用户数据目录：`localStorage`（API Key、语言、主题等设置）、`IndexedDB`（会话与附件原件）、缓存与 cookie | 首次启动。Tauri 在创建窗口前就建好该目录，不等 WebView2 写入，所以刚建好时可能是空目录；正常跑起来后里面会出现 `EBWebView` 子目录 |
+| `%LOCALAPPDATA%\com.letmuts.dskchat\startup.log` | 启动失败 / panic 记录 | 仅在启动失败时写入 |
+
+- 目录名来自 [tauri.conf.json](src-tauri/tauri.conf.json) 的 `identifier`；改 `identifier` 会换到新目录，旧数据不会自动迁移（迁移步骤见 [docs/BRANDING.md](docs/BRANDING.md)）。
+- exe 与 `%LOCALAPPDATA%` 不在同一卷时，[lib.rs](src-tauri/src/lib.rs) 会把 WebView2 数据目录兜底到 exe 同卷的 `.webview2-data/`（设计说明见 [docs/TAURI.md](docs/TAURI.md)）；实际生效位置以该目录内是否出现 `EBWebView` 子目录为准。
+- 退出程序后删除该目录等于清空本地设置、会话与附件缓存，下次启动会重新创建；只想清会话请用设置 → 数据管理 → 删除所有对话。
+- Android 端数据在应用私有目录内（由系统沙箱隔离），不适用上表。
+
 设置中的历史导入导出使用 ZIP 格式。导入会在确认并校验成功后替换全部本地会话和附件；导出包含会话与本地可用的图片原件，不包含 API Key、设置或非图片附件原件。格式与保留范围见[历史导入导出](web/services/chat/history/README.md)。
 
 设置 → 数据管理 → 删除所有对话，会在确认后清空全部本地会话、附件原件和未发送的草稿，停止正在生成的回复并回到新对话。API Key 和其他设置保留，已上传到 API 服务的文件不受影响。

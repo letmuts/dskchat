@@ -66,6 +66,18 @@ scripts/                        Android permission patch and CI helpers
 
 The API key and settings are stored in the WebView's localStorage (the browser profile on the Web build, the WebView2 profile on desktop). The native OS keychain slot is not implemented yet, so the key is stored as plain text. Conversations and original attachments are stored in IndexedDB, isolated by browser profile and site origin. Sending messages, uploading attachments, and using speech features sends the relevant content to the configured API service.
 
+On Windows the on-disk location is derived from `identifier`, so the directory is named `com.letmuts.dskchat`:
+
+| Path | Contents | When it appears |
+|---|---|---|
+| `%LOCALAPPDATA%\com.letmuts.dskchat\` | WebView2 user data folder: `localStorage` (API key, language, theme, and other settings), `IndexedDB` (conversations and original attachments), cache, and cookies | On first launch. Tauri creates it before the window is created, so it can be empty right after creation; once the app runs normally an `EBWebView` subdirectory appears inside it |
+| `%LOCALAPPDATA%\com.letmuts.dskchat\startup.log` | Startup failure / panic log | Written only when startup fails |
+
+- The directory name comes from `identifier` in [tauri.conf.json](src-tauri/tauri.conf.json); changing it moves the app to a new directory and old data is not migrated (see [docs/BRANDING.md](docs/BRANDING.md)).
+- When the executable and `%LOCALAPPDATA%` are on different volumes, [lib.rs](src-tauri/src/lib.rs) falls back to `.webview2-data/` on the executable's volume (design notes in [docs/TAURI.md](docs/TAURI.md)); confirm the effective location by checking whether an `EBWebView` subdirectory shows up there.
+- After quitting the app, deleting that directory clears local settings, conversations, and attachment cache; it is recreated on the next launch. To clear only conversations, use Settings → Data → Delete all chats.
+- Android data lives in the app's private directory (isolated by the OS sandbox) and is not covered by the table above.
+
 History import and export in Settings use ZIP archives. After confirmation and successful validation, importing replaces all local conversations and attachments. Exports include conversations and locally available original images, but exclude the API key, settings, and original non-image attachments. See the [history import/export documentation (Chinese)](web/services/chat/history/README.md) for the archive format and preservation details.
 
 Settings → Data → Delete all chats clears all local conversations, original attachments, and unsent drafts after confirmation. It stops ongoing replies and returns to a new chat. The API key and other settings are preserved; files already uploaded to the API service are not deleted.

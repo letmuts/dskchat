@@ -30,7 +30,7 @@ tauri = { version = "=2.11.5", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # 系统浏览器/文件打开，桌面与移动端通用
-tauri-plugin-opener = { version = "2", optional = true }
+tauri-plugin-opener = { path = "vendor/tauri-plugin-opener", optional = true }  # 默认路径会出问题，所以只能改路径到代码了。
 
 # 桌面端单实例：重复双击时只唤起已有窗口，避免多进程争用同一 WebView2 数据目录
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
