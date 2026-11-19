@@ -231,8 +231,14 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
           <VoiceButton
             status={voice.status}
             disabled={!voice.available}
+            disabledHint={voice.unavailableReason ?? undefined}
             seconds={voice.seconds}
             onClick={() => {
+              // 入口不可用时也给出反馈：移动端没有 hover，tooltip 看不到
+              if (!voice.available) {
+                showToast(voice.unavailableReason ?? { key: 'voiceInputUnsupported' })
+                return
+              }
               if (
                 voice.status !== 'idle' ||
                 (!useChatStore.getState().importingHistory && ensureApiKey())

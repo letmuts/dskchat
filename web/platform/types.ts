@@ -88,13 +88,28 @@ export type ArchiveModule = {
   writeZip(entries: ArchiveEntry[]): Promise<Blob>
 }
 
+/**
+ * 保存结果。各平台能确认的信息不同，界面据此给出「文件去哪了」的提示。
+ */
+export type SaveOutcome =
+  /** 交给浏览器下载（浏览器 / 桌面外壳）；`path` 是推断出的完整路径，取不到时为 null */
+  | { readonly via: 'download'; readonly name: string; readonly path: string | null }
+  /** 已写入系统「下载」目录（Android MediaStore），`name` 为文件名 */
+  | { readonly via: 'downloads'; readonly name: string }
+  /** 已写入应用专属目录（Android 9 及以下），`path` 为完整路径 */
+  | { readonly via: 'file'; readonly path: string }
+
+/** `system_save_file` 的返回：`downloads` 时 path 是文件名，`file` 时是完整路径。 */
+export type SavedFile = { readonly kind: 'downloads' | 'file'; readonly path: string }
+
 /** 平台相关动作：打开外链、把文件落到用户可访问的位置。 */
 export type SystemModule = {
   readonly origin: ModuleOrigin
   /** 平台名，仅用于展示与排错 */
   readonly name: string
   openExternal(url: string): void
-  saveFile(blob: Blob, name: string): Promise<void>
+  /** 保存导出文件；返回值用于提示用户文件去了哪里 */
+  saveFile(blob: Blob, name: string): Promise<SaveOutcome>
 }
 
 export type SearchHit = { sessionId: string; messageId: string; snippet: string }

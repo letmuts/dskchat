@@ -36,6 +36,12 @@ tauri-plugin-opener = { path = "vendor/tauri-plugin-opener", optional = true }  
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"
 
+# Android 保存导出文件：MediaStore 需要调 Java API，故直接走 JNI；
+# base64 只用于把归档从 WebView 传进来（Android 的 IPC 是字符串通道）。
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"
+base64 = "0.22"
+
 # 启动失败时弹原生错误框（仅 Windows）
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }

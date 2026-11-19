@@ -122,6 +122,11 @@ export const en = {
   historyImportFailed:
     'File import failed. The file format may be invalid, or the ZIP file may use an older chat export format. Please export your chat history from DeepSeek again and retry the import.',
   historyExportFailed: 'Export failed: {message}',
+  historyExporting: 'Exporting...',
+  historyExportDownloaded: 'Download started: {path}',
+  historyExportDownloadedUnknown: 'Download started: {name} — check your Downloads folder',
+  historyExportSavedToDownloads: 'Saved to Downloads: {name}',
+  historyExportSaved: 'Exported to: {path}',
   exportAllLabel: 'Export all chats',
   historyExportDescription:
     'Includes all chat history and locally stored images. Other attachments retain file details only. Your API Key is not included.',
@@ -161,7 +166,12 @@ export const en = {
   voiceInputCancel: 'Transcribing. Click to cancel',
   voiceInputPermissionDenied:
     'Microphone access is blocked. Please allow it in your browser settings.',
+  voiceInputPermissionDeniedApp:
+    'Microphone access is blocked. Please allow dskchat to use the microphone in your system settings.',
   voiceInputNoDevice: 'No microphone detected',
+  voiceInputDeviceBusy: 'The microphone is in use by another app. Please close it and try again.',
+  voiceInputUnsupported: 'Recording is not supported on this system.',
+  voiceInputNothingCaptured: 'No audio was captured. Please try again.',
   voiceInputTooLong: 'Recording is too long. Please shorten it and try again.',
   voiceInputFailed: 'Speech recognition failed. Please try again later.',
   voiceInputEmpty: 'No speech detected',

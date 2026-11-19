@@ -1,2 +1,9 @@
+## 0.1.2
+- 版本号开始遵循tauri的版本规范（dskchat\src-tauri\tauri.conf.json/version）
+- 修复以下问题：
+- 修复安卓端录音功能bug
+- 修复Android端界面显示不正常
+- 修复Android端历史记录无法导出（代码层面pc端同步修复，但未测试验证）
+
 ## 0.0.1
-- 构建了
+- 这是程序的第一个版本，构建出了基本可用的Windows和安卓应用。

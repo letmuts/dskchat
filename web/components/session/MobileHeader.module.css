@@ -3,8 +3,9 @@
   align-items: center;
   flex-shrink: 0;
   box-sizing: border-box;
-  height: 60px;
-  padding: 12px 10px 4px;
+  /* 状态栏高度计入顶栏，按钮才不会被通知栏盖住；内容区仍恰好容纳 44px 的按钮 */
+  height: calc(var(--app-mobile-header-height, 60px) + var(--app-safe-top, 0px));
+  padding: calc(12px + var(--app-safe-top, 0px)) 10px 4px;
 }
 
 .title {

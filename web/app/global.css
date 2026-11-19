@@ -1,6 +1,11 @@
 :root {
   --message-list-max-width: 840px;
   --message-list-padding-horizontal: 44px;
+  /* 移动端安全区：状态栏/刘海与底部手势条；不支持 env() 的旧 WebView 取 0px */
+  --app-safe-top: env(safe-area-inset-top, 0px);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* 顶栏内容区高度，顶栏实际总高 = 该值 + 状态栏高度 */
+  --app-mobile-header-height: 60px;
 }
 
 @media (max-width: 1023px) {

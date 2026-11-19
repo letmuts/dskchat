@@ -9,6 +9,7 @@ import { webStorage } from './modules/storage.js'
 import { webArchive } from './modules/archive.js'
 import { nativeSystem, webSystem } from './modules/system.js'
 import { webSearch } from './modules/search.js'
+import { setShellPlatform, shellPlatform } from './shell.js'
 
 /** 全部槽位的默认实现，行为与改造前完全一致 */
 const webModules: PlatformModules = {
@@ -74,6 +75,10 @@ export const initPlatform = async (): Promise<ModuleStatus[]> => {
   } catch {
     probe = null
   }
+  // 保存文件、系统集成要按目标系统分流，探测失败时保持 Web 默认值
+  if (probe?.platform) {
+    setShellPlatform(probe.platform)
+  }
 
   const wants = (id: ModuleId) => requested.has(id) && probe?.modules[id] === true
   const next: PlatformModules = {
@@ -107,6 +112,14 @@ export const initPlatform = async (): Promise<ModuleStatus[]> => {
 export const platform = {
   get target(): 'web' | 'tauri' {
     return TARGET
+  },
+  /** 是否跑在移动端外壳里（Android / iOS）；Web 构建恒为 false */
+  get mobile(): boolean {
+    return shellPlatform.mobile
+  },
+  /** 外壳上报的目标系统，Web 构建为 `web` */
+  get os(): string {
+    return shellPlatform.os
   },
   get secrets() {
     return active.secrets

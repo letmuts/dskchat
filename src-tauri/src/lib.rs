@@ -48,6 +48,8 @@ pub fn run() {
             modules::secrets::secrets_get,
             modules::secrets::secrets_set,
             modules::system::system_open_external,
+            modules::system::system_download_dir,
+            modules::system::system_save_file,
         ])
         .run(tauri::generate_context!());
 

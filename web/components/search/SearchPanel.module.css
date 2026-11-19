@@ -62,5 +62,7 @@
     width: auto;
     max-width: none;
     border-left: none;
+    /* 全屏浮层，顶部让出状态栏，否则标题和关闭按钮同样被遮 */
+    padding-top: var(--app-safe-top, 0px);
   }
 }

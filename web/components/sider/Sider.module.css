@@ -209,6 +209,8 @@
 .mobile {
   width: 300px;
   max-width: calc(100vw - 48px);
+  /* 抽屉也从屏幕顶边开始，顶部要让出状态栏，否则 App 名称和收起按钮被遮住 */
+  padding-top: calc(6px + var(--app-safe-top, 0px));
 
   .listWrap {
     margin-top: 16px;
@@ -222,7 +224,8 @@
 
   .bottom {
     height: auto;
-    padding: 12px 0;
+    /* 底部「设置」要避开手势条 */
+    padding: 12px 0 calc(12px + var(--app-safe-bottom, 0px));
   }
 
   .settings {

@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useTranslate } from '../../i18n/index.js'
+import { useTranslate, type TranslationMessage } from '../../i18n/index.js'
 import { IconMicFill16, IconMicOutline16 } from '../base/icons.js'
 import { Tooltip } from '../base/Tooltip.js'
 import type { VoiceInputStatus } from './useVoiceInput.js'
@@ -10,16 +10,20 @@ import styles from './VoiceButton.module.css'
  * 录音中为两层圆：外层半透明光圈 + 内层实心品牌色；
  * 外层先展开、内层随后放大，之后外层按固定节奏呼吸，与音量无关。
  * 按钮左侧显示「录音中 Ns」，窄屏不展示读秒。
+ * 不可用时置灰但仍可点击，由调用方给出原因——移动端没有 hover，tooltip 看不到。
  */
 export const VoiceButton = ({
   status,
   disabled = false,
+  disabledHint,
   seconds,
   onClick,
 }: {
   status: VoiceInputStatus
-  /** 非安全上下文中按钮置灰，tooltip 提示录音需要 HTTPS */
+  /** 非安全上下文 / 环境没有 mediaDevices 时置灰 */
   disabled?: boolean
+  /** 置灰原因，用于 tooltip 与读屏标签 */
+  disabledHint?: TranslationMessage
   /** 本次录音已录秒数，录音中显示在按钮左侧 */
   seconds: number
   onClick: () => void
@@ -28,7 +32,7 @@ export const VoiceButton = ({
   const recording = status === 'recording'
 
   const label = disabled
-    ? t('voiceInputRequiresHttps')
+    ? t(disabledHint?.key ?? 'voiceInputRequiresHttps')
     : recording
       ? t('voiceInputStop')
       : status === 'transcribing'
@@ -49,11 +53,7 @@ export const VoiceButton = ({
           aria-label={label}
           aria-pressed={recording}
           aria-disabled={disabled}
-          onClick={() => {
-            if (!disabled) {
-              onClick()
-            }
-          }}
+          onClick={onClick}
         >
           {recording ? (
             <span className={styles.active}>

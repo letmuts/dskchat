@@ -49,7 +49,8 @@ export const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     title: '系统集成',
     wired: true,
     implemented: true,
-    description: '外链交给系统浏览器（tauri-plugin-opener，桌面与安卓通用）；保存文件仍走浏览器下载',
+    description:
+      '外链交给系统浏览器（tauri-plugin-opener，桌面与安卓通用）；保存文件在桌面仍走浏览器下载并提示目录，Android 由 system_save_file 写入系统「下载」目录',
   },
   {
     id: 'search',

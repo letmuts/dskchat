@@ -1,8 +1,9 @@
 /**
  * 录音并编码为 ASR 接受的 WAV（单声道、16-bit PCM、16kHz）。
  *
- * AudioContext 以 16kHz 创建，浏览器负责重采样；ScriptProcessorNode 采集 PCM 样本。
- * 录音处理在页面内完成。
+ * AudioContext 优先按 16kHz 创建，由浏览器重采样；少数 WebView 会忽略甚至拒绝这个采样率，
+ * 此时按实际采样率采集，编码前再重采样到 16kHz，保证 WAV 头与数据一致。
+ * ScriptProcessorNode 采集 PCM 样本，录音处理在页面内完成。
  */
 export const SAMPLE_RATE = 16000
 /** ASR 单次时长上限 120 秒 */
@@ -17,6 +18,15 @@ export type Recording = {
   cancel: () => void
   /** 频谱分析节点，只读；采样率与录音一致 */
   analyser: AnalyserNode
+}
+
+/** 部分 WebView 不支持指定采样率，回落到设备默认值（编码前统一重采样） */
+const createContext = () => {
+  try {
+    return new AudioContext({ sampleRate: SAMPLE_RATE })
+  } catch {
+    return new AudioContext()
+  }
 }
 
 /** 开始录音；到达时长上限时调用 onLimit，由调用方决定何时 stop */
@@ -53,7 +63,9 @@ export const startRecording = async (onLimit: () => void): Promise<Recording> =>
   }
 
   try {
-    context = new AudioContext({ sampleRate: SAMPLE_RATE })
+    context = createContext()
+    // 浏览器可能没按请求的采样率创建（WebKit 会忽略），以实际值为准
+    const frameRate = context.sampleRate
     source = context.createMediaStreamSource(stream)
     processor = context.createScriptProcessor(BUFFER_SIZE, 1, 1)
     // 频谱分析用：串在录音链路中间（原样透传），WebKit 不会处理未连到输出的分析节点
@@ -67,9 +79,10 @@ export const startRecording = async (onLimit: () => void): Promise<Recording> =>
       if (limited) {
         return
       }
-      chunks.push(new Float32Array(event.inputBuffer.getChannelData(0)))
-      length += BUFFER_SIZE
-      if (length >= MAX_SECONDS * SAMPLE_RATE) {
+      const channel = event.inputBuffer.getChannelData(0)
+      chunks.push(new Float32Array(channel))
+      length += channel.length
+      if (length >= MAX_SECONDS * frameRate) {
         limited = true
         onLimit()
       }
@@ -86,7 +99,8 @@ export const startRecording = async (onLimit: () => void): Promise<Recording> =>
     return {
       stop: async () => {
         release()
-        return length === 0 ? null : encodeWav(chunks, length)
+        const samples = toSamples(chunks, length, frameRate)
+        return samples.length === 0 ? null : encodeWav(samples)
       },
       cancel: release,
       analyser,
@@ -97,9 +111,40 @@ export const startRecording = async (onLimit: () => void): Promise<Recording> =>
   }
 }
 
-const encodeWav = (chunks: Float32Array[], length: number) => {
-  const samples = Math.min(length, MAX_SECONDS * SAMPLE_RATE)
-  const buffer = new ArrayBuffer(44 + samples * 2)
+/** 拼接采样并按需重采样到 SAMPLE_RATE；线性插值对语音识别足够 */
+const toSamples = (chunks: Float32Array[], length: number, frameRate: number) => {
+  const limit = Math.min(length, MAX_SECONDS * frameRate)
+  const flat = new Float32Array(limit)
+  let written = 0
+  for (const chunk of chunks) {
+    const take = Math.min(chunk.length, limit - written)
+    if (take <= 0) {
+      break
+    }
+    flat.set(chunk.subarray(0, take), written)
+    written += take
+  }
+  if (written === 0) {
+    return flat.subarray(0, 0)
+  }
+  const input = written === flat.length ? flat : flat.subarray(0, written)
+  if (frameRate === SAMPLE_RATE) {
+    return input
+  }
+  const ratio = SAMPLE_RATE / frameRate
+  const output = new Float32Array(Math.floor(input.length * ratio))
+  for (let i = 0; i < output.length; i++) {
+    const position = i / ratio
+    const index = Math.floor(position)
+    const next = Math.min(index + 1, input.length - 1)
+    const weight = position - index
+    output[i] = input[index] * (1 - weight) + input[next] * weight
+  }
+  return output
+}
+
+const encodeWav = (samples: Float32Array) => {
+  const buffer = new ArrayBuffer(44 + samples.length * 2)
   const view = new DataView(buffer)
   const writeString = (offset: number, text: string) => {
     for (let i = 0; i < text.length; i++) {
@@ -107,7 +152,7 @@ const encodeWav = (chunks: Float32Array[], length: number) => {
     }
   }
   writeString(0, 'RIFF')
-  view.setUint32(4, 36 + samples * 2, true)
+  view.setUint32(4, 36 + samples.length * 2, true)
   writeString(8, 'WAVE')
   writeString(12, 'fmt ')
   view.setUint32(16, 16, true)
@@ -118,15 +163,10 @@ const encodeWav = (chunks: Float32Array[], length: number) => {
   view.setUint16(32, 2, true)
   view.setUint16(34, 16, true)
   writeString(36, 'data')
-  view.setUint32(40, samples * 2, true)
-  let offset = 44
-  let written = 0
-  for (const chunk of chunks) {
-    for (let i = 0; i < chunk.length && written < samples; i++, written++) {
-      const sample = Math.max(-1, Math.min(1, chunk[i]))
-      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true)
-      offset += 2
-    }
+  view.setUint32(40, samples.length * 2, true)
+  for (let i = 0; i < samples.length; i++) {
+    const sample = Math.max(-1, Math.min(1, samples[i]))
+    view.setInt16(44 + i * 2, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true)
   }
   return new Blob([buffer], { type: 'audio/wav' })
 }

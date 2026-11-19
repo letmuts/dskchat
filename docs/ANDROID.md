@@ -42,16 +42,35 @@ pnpm tauri:android:build     # 生成 APK
 `gen/android/app/src/main/AndroidManifest.xml` 里幂等补上：
 
 ```xml
-<uses-permission android:name="android.permission.RECORD_AUDIO" />
 <uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 ```
 
 - `RECORD_AUDIO`：语音输入用 `getUserMedia`，缺这条会直接拒绝。
+- `MODIFY_AUDIO_SETTINGS`：wry 的 `onPermissionRequest` 会把它和 `RECORD_AUDIO` 放进同一次
+  运行时申请，并要求两者都通过才向 WebView 授权。清单漏声明时系统对它直接返回 `DENIED`
+  （不弹窗），于是用户明明授权了麦克风，`getUserMedia` 仍然抛 `NotAllowedError`——这就是
+  “授权后仍提示无法使用麦克风”的原因。它只是普通权限，不需要额外弹窗。
 - `INTERNET`：默认模板已包含，脚本会确认。
 
-如果绕过 `tauri:android:init` 直接改 `gen/`，才需要手工补这两条；`gen/` 被 gitignore，重新生成会丢失手工修改。
+如果绕过 `tauri:android:init` 直接改 `gen/`，才需要手工补这几条；`gen/` 被 gitignore，重新生成会丢失手工修改。
 
 安卓 9+ 默认禁止明文 HTTP，本项目只访问 HTTPS，不需要 `usesCleartextTraffic`。
+
+## 导出历史对话（保存文件）
+
+Android WebView 不支持 `a[download]` + `blob:`，导出必须由原生侧落盘：
+
+1. 前端把 ZIP 转成 base64，调用 `system_save_file`（Android 的 IPC 走
+   `window.ipc.postMessage(String)`，不能像桌面那样传二进制 body）；
+2. Rust 侧在 `src-tauri/src/modules/system.rs` 里用 JNI 调
+   `MediaStore.Downloads`，把文件写进系统「下载」目录（Android 10+，免权限），
+   并返回文件名；Android 8/9 没有 `MediaStore.Downloads`，退到应用外部目录。
+3. 成功后设置页用 toast 提示「已保存到系统「下载」目录：xxx.zip」。
+
+桌面端不经过这个命令：WebView 自带下载，前端只用 `system_download_dir`
+拿到下载目录路径，给出「已开始下载：<路径>」的提示。
 
 ## 签名与上架
 

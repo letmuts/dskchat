@@ -27,7 +27,12 @@ import {
   useSettings,
   type ThemePreference,
 } from '../../services/settings.js'
-import { useTranslate, type TranslationKey, type TranslationMessage } from '../../i18n/index.js'
+import {
+  useTranslate,
+  type LinkedMessage,
+  type TranslationKey,
+  type TranslationMessage,
+} from '../../i18n/index.js'
 import { Button } from '../base/Button.js'
 import { Modal } from '../base/Modal.js'
 import { Select } from '../base/Select.js'
@@ -35,6 +40,7 @@ import { showToast } from '../base/toastState.js'
 import { ApiKeyConfirm, ApiKeyField, useApiKeyEditor } from './ApiKeyField.js'
 import { closeSettings, useSettingsDialog, type SettingsSection } from './settingsDialogState.js'
 import { platform } from '../../platform/index.js'
+import type { SaveOutcome } from '../../platform/types.js'
 import styles from './Settings.module.css'
 
 /**
@@ -395,10 +401,11 @@ const ThemeSetting = () => {
 }
 
 /** `reason` 为失败原因的文案 key，展示时按当前语言翻译后填入 `message` 参数。 */
-type Status = (TranslationMessage & { error?: boolean; reason?: TranslationKey }) | null
+type StatusMessage = TranslationMessage & { error?: boolean; reason?: TranslationKey }
+type Status = StatusMessage | null
 
 /** 导出失败附带原因：预期的错误用对应文案作原因，其他错误用错误信息。 */
-const errorStatus = (key: TranslationKey, error: unknown): Status => ({
+const errorStatus = (key: TranslationKey, error: unknown): StatusMessage => ({
   key,
   ...(error instanceof BackupError
     ? { reason: error.key }
@@ -513,6 +520,20 @@ const ImportHistory = ({
   )
 }
 
+/** 导出成功的提示：把「文件到底在哪」写清楚，桌面/安卓/浏览器各说各的。 */
+const savedMessage = (outcome: SaveOutcome): LinkedMessage => {
+  switch (outcome.via) {
+    case 'downloads':
+      return { key: 'historyExportSavedToDownloads', params: { name: outcome.name } }
+    case 'file':
+      return { key: 'historyExportSaved', params: { path: outcome.path } }
+    default:
+      return outcome.path
+        ? { key: 'historyExportDownloaded', params: { path: outcome.path } }
+        : { key: 'historyExportDownloadedUnknown', params: { name: outcome.name } }
+  }
+}
+
 /** 将全部会话及图片导出为 ZIP 文件并下载 */
 const ExportHistory = ({ disabled }: { disabled: boolean }) => {
   const t = useTranslate()
@@ -525,10 +546,18 @@ const ExportHistory = ({ disabled }: { disabled: boolean }) => {
     setStatus(null)
     try {
       const { name, blob } = await exportHistory()
-      // 走平台槽位：Web 用 a[download]，原生外壳可换成文件系统 + 分享
-      await platform.system.saveFile(blob, name)
+      // 走平台槽位：Web/桌面用 a[download]（桌面随后提示下载目录），安卓交给原生命令写盘
+      const outcome = await platform.system.saveFile(blob, name)
+      showToast(savedMessage(outcome))
     } catch (error) {
-      setStatus(errorStatus('historyExportFailed', error))
+      const failed = errorStatus('historyExportFailed', error)
+      setStatus(failed)
+      // 设置页里的失败提示在按钮下方，手机上容易被忽略，再补一条 toast
+      showToast({
+        key: failed.key,
+        params: failed.reason ? { message: t(failed.reason) } : failed.params,
+        type: 'error',
+      })
     } finally {
       setBusy(false)
     }
@@ -545,10 +574,11 @@ const ExportHistory = ({ disabled }: { disabled: boolean }) => {
           size="m"
           className={styles.cellButton}
           disabled={disabled || busy || empty}
+          aria-busy={busy}
           onClick={() => void onExport()}
         >
           <IconDownloadOutline16 />
-          {t('exportAllDownload')}
+          {t(busy ? 'historyExporting' : 'exportAllDownload')}
         </Button>
       }
     />

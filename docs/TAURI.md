@@ -132,6 +132,7 @@ pnpm tauri:android:build     # 出 APK
 | 窗口白屏 | 先看是不是 `pnpm build:tauri` 没跑；再确认 `frontendDist` 指向 `../dist` |
 | 接口全部失败、控制台 CSP 报错 | `connect-src` 少了域名 |
 | 语音按钮不可用 | 麦克风权限未授予；`isSecureContext` 为 false |
+| Android 授权后仍提示无法使用麦克风 | AndroidManifest 缺 `MODIFY_AUDIO_SETTINGS`（wry 的授权链路要求它和 `RECORD_AUDIO` 同时通过），见 `docs/ANDROID.md` |
 | `cargo check` 卡在下载 | 首次编译 Tauri 依赖较重，属于正常 |
 | 启动即退出 | 看 `%LOCALAPPDATA%\com.letmuts.dskchat\startup.log`；Windows 还会弹错误框 |
 | 事件日志出现 `msedgewebview2.exe` / `msedge.dll` / `0x80000003` | WebView2 内核启动失败：先升级/重装系统 WebView2；仍复现则抓 dump，不要只靠换版本 |

@@ -115,6 +115,11 @@ export const zh = {
   historyImportFailed:
     '文件导入失败，可能是文件格式错误或使用了旧版的对话导出 ZIP 文件，请前往 DeepSeek 重新导出历史对话文件后再次导入。',
   historyExportFailed: '导出失败：{message}',
+  historyExporting: '正在导出…',
+  historyExportDownloaded: '已开始下载：{path}',
+  historyExportDownloadedUnknown: '已开始下载：{name}，请到系统「下载」目录查看',
+  historyExportSavedToDownloads: '已保存到系统「下载」目录：{name}',
+  historyExportSaved: '已导出到：{path}',
   exportAllLabel: '导出所有历史对话',
   historyExportDescription:
     '包含所有历史对话及本地图片原件；其他附件仅保留文件信息，不包含 API Key。',
@@ -152,7 +157,11 @@ export const zh = {
   voiceInputStop: '结束录音并转写',
   voiceInputCancel: '正在转写，点击取消',
   voiceInputPermissionDenied: '无法使用麦克风，请在浏览器设置中允许访问',
+  voiceInputPermissionDeniedApp: '无法使用麦克风，请在系统设置中允许 dskchat 访问麦克风',
   voiceInputNoDevice: '未检测到麦克风',
+  voiceInputDeviceBusy: '麦克风被其他应用占用，请关闭后重试',
+  voiceInputUnsupported: '当前系统不支持录音',
+  voiceInputNothingCaptured: '没有采集到声音，请重试',
   voiceInputTooLong: '录音过长，请缩短后重试',
   voiceInputFailed: '语音识别失败，请稍后再试',
   voiceInputEmpty: '未识别到语音内容',

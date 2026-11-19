@@ -49,7 +49,7 @@ src-tauri/               原生外壳（桌面 + Android 共用）
 | id | 能力 | 前端已接线 | Rust 已实现 | 说明 |
 |---|---|---|---|---|
 | `secrets` | API Key 存取 | ✅ | ⬜ 命令占位（返回 `unimplemented`） | 未实现时启动阶段回落 localStorage |
-| `system` | 打开外链 | ✅ | ✅ `openExternal` 已就绪 | 保存文件仍走浏览器下载（`saveFile` 委托 Web 实现） |
+| `system` | 打开外链 / 保存文件 | ✅ | ✅ `openExternal` 与 `saveFile` 均已就绪 | 外链走系统浏览器；保存文件：桌面沿用浏览器下载（另有 `system_download_dir` 用于提示目录），Android 由 `system_save_file` 写入系统「下载」目录 |
 | `http` | 聊天流 / 文件 / 语音 | ⚠️ 5/6 方法 | ⬜ | `deleteFile` 契约已定义但暂无调用方；其余方法均已走 `platform.http` |
 | `storage` | 会话与附件 | ✅ | ⬜ | 业务代码全部经 `platform.storage`；`db.ts` 除类型导入外只被 `storage.ts` 引用 |
 | `archive` | 历史 ZIP | ⚠️ 仅导出 | ⬜ | 导出走 `platform.archive.writeZip`；导入仍在 [importArchive.ts](../web/services/chat/history/importArchive.ts) 里直连 `zipReader` |
@@ -86,7 +86,7 @@ NATIVE_MODULES=http pnpm build:tauri
 - **IPC 是粗粒度的**。流式回复请用 `tauri::ipc::Channel` 按块推送，不要每个 token 一次 `invoke`。
 - **错误要能被前端识别**。命令统一返回 `ModuleError { module, reason: disabled | unimplemented | failed, message }`（定义见 [mod.rs](../src-tauri/src/modules/mod.rs)）。`ApiError` 是更上层的业务错误；`nativeHttp` 需要区分「余额不足 / 限流」时，应在 TS 侧把 `ModuleError`（或额外返回的结构化数据）映射成 `ApiError`，**不要假设 Rust 侧已有 `{ kind, status, message }` 这种形状**。
 - **二进制别用 JSON**。音频、ZIP 用 `tauri::ipc::Response` 直接回字节。
-- **部分实现要逐方法回落**。`system` 就是例子：`openExternal` 走原生，`saveFile` 仍用 Web 实现。
+- **部分实现要逐方法回落**。`system` 就是例子：`openExternal` 两端都走原生，`saveFile` 在桌面用浏览器下载（WebView 自带），在 Android 换成原生命令 —— 因为 Android WebView 不支持 `a[download]` + `blob:`。
 
 ## 已知差异与待办
 

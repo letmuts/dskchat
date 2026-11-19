@@ -8,21 +8,46 @@ import { showToast } from '../base/toastState.js'
 export type VoiceInputStatus = 'idle' | 'recording' | 'transcribing'
 
 /**
- * 录音依赖 getUserMedia，只在安全上下文可用（HTTPS、localhost、file://）。
- * 普通 HTTP 页面上直接禁用入口，避免点击后必然失败。
+ * 录音依赖 getUserMedia：只在安全上下文可用（HTTPS、localhost、file://），
+ * 并且要求运行环境暴露 mediaDevices——部分系统 WebView 没有这个对象。
  */
-const AVAILABLE = typeof window === 'undefined' || window.isSecureContext
+const AVAILABLE =
+  typeof window === 'undefined' ||
+  (window.isSecureContext && typeof navigator.mediaDevices?.getUserMedia === 'function')
+
+/** 入口不可用的原因，可用时为 null；按钮标签与点击提示共用 */
+const UNAVAILABLE_REASON: TranslationMessage | null = AVAILABLE
+  ? null
+  : typeof window !== 'undefined' && !window.isSecureContext
+    ? { key: 'voiceInputRequiresHttps' }
+    : { key: 'voiceInputUnsupported' }
 
 const describeRecordingError = (error: unknown): TranslationMessage => {
-  if (error instanceof DOMException) {
-    if (error.name === 'NotAllowedError' || error.name === 'SecurityError') {
-      return { key: 'voiceInputPermissionDenied' }
-    }
-    if (error.name === 'NotFoundError') {
-      return { key: 'voiceInputNoDevice' }
-    }
+  if (!(error instanceof DOMException)) {
+    return { key: 'voiceInputFailed' }
   }
-  return { key: 'voiceInputFailed' }
+  switch (error.name) {
+    case 'NotAllowedError':
+    case 'PermissionDeniedError':
+      // 原生外壳里没有“浏览器设置”可改，要引导到系统里的应用权限
+      return {
+        key:
+          platform.target === 'tauri'
+            ? 'voiceInputPermissionDeniedApp'
+            : 'voiceInputPermissionDenied',
+      }
+    case 'SecurityError':
+      return { key: 'voiceInputRequiresHttps' }
+    case 'NotFoundError':
+    case 'DevicesNotFoundError':
+      return { key: 'voiceInputNoDevice' }
+    // Android WebView 上麦克风被占用、或音频通路建不起来时是这两个名字
+    case 'NotReadableError':
+    case 'TrackStartError':
+      return { key: 'voiceInputDeviceBusy' }
+    default:
+      return { key: 'voiceInputFailed' }
+  }
 }
 
 /**
@@ -69,7 +94,12 @@ export const useVoiceInput = (onText: (text: string) => void) => {
       } finally {
         recording.cancel()
       }
-      if (operationRef.current !== operation || !audio) {
+      if (operationRef.current !== operation) {
+        return
+      }
+      if (!audio) {
+        // 一帧都没采到：AudioContext 可能仍处于 suspended，或设备没有输出，别静默结束
+        showToast({ key: 'voiceInputNothingCaptured' })
         return
       }
       controller = new AbortController()
@@ -102,6 +132,8 @@ export const useVoiceInput = (onText: (text: string) => void) => {
 
   const toggle = useCallback(async () => {
     if (!AVAILABLE) {
+      // 移动端没有 hover，tooltip 看不到，点击时直接说明原因
+      showToast(UNAVAILABLE_REASON ?? { key: 'voiceInputUnsupported' })
       return
     }
     if (status === 'recording') {
@@ -152,5 +184,13 @@ export const useVoiceInput = (onText: (text: string) => void) => {
   /** 当前录音的频谱分析节点，未录音时为 null */
   const getAnalyser = useCallback(() => recordingRef.current?.analyser ?? null, [])
 
-  return { status, seconds, getAnalyser, toggle, cancel, available: AVAILABLE }
+  return {
+    status,
+    seconds,
+    getAnalyser,
+    toggle,
+    cancel,
+    available: AVAILABLE,
+    unavailableReason: UNAVAILABLE_REASON,
+  }
 }
