@@ -6,14 +6,14 @@ dskchat是一款基于 Rust + Tauri 2 的非官方 DeepSeek 客户端。Windows 
 基于 Rust + Tauri 对 DeepSeek API 静态聊天示例（[deepseek-ai/deepseek-chat-demo](https://github.com/deepseek-ai/deepseek-chat-demo)）的Windows / Android 封装。无需自行构建或改配置，下载安装后在设置中填入 API Key 即可使用。
 
 ## 下载安装
+下载：https://github.com/letmuts/dskchat/releases
+Release 提供 Windows EXE 与 Android APK：
 
-Release 提供 Windows 安装包（NSIS / MSI）与 Android APK：
-
-- **Windows**：下载 NSIS / MSI 安装包并双击安装。需要 Windows 10/11；WebView2 在 Win11 预装，Win10 多数已随 Edge / Windows Update 安装，缺失时安装包会自动下载。
+- **Windows**：下载exe双击运行即可。需要 Windows 10/11；WebView2 在 Win11 预装，Win10 多数已随 Edge / Windows Update 安装，缺失时安装包会自动下载。
 - **Android**：下载 APK 安装，最低 Android 8.0（API 26）；首次安装需允许“未知来源”。
 - **首次使用**：打开设置填入 DeepSeek API Key。Key 只保存在本机 WebView 的 localStorage（明文，未接系统钥匙串），发起对话时会随请求发送给配置的 API 服务；详见[数据](#数据)。
 
-> Windows 安装包未做代码签名，SmartScreen 可能提示风险；Android 首次安装需允许“未知来源”。
+> Windows应用 未做代码签名，SmartScreen 可能提示风险；Android 首次安装需允许“未知来源”。
 
 ## 项目结构
 
@@ -21,7 +21,6 @@ Release 提供 Windows 安装包（NSIS / MSI）与 Android APK：
 
 ```text
 package.json / pnpm-lock.yaml   前端依赖与脚本
-rust-toolchain.toml             锁定的 Rust 工具链
 web/                            前端（React + TypeScript）
   app/                          应用布局、主题与视口
   components/                   聊天、设置、Markdown 等界面组件
@@ -124,7 +123,9 @@ pnpm tauri:android:build
 见[版本说明](/docs/version.md)
 .....
 
-
+## 项目协作
+本项目为解决自己对deepseek快速敏捷的使用需求而做，不免简陋，欢迎大家提出问题并贡献代码。
+贡献代码流程请参见：[协作规范](/docs/协作规范（草稿）.md)
 
 ## CI
 
