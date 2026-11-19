@@ -96,7 +96,7 @@ pnpm install
 pnpm tauri:build
 ```
 
-产物在 `src-tauri/target/release/bundle/`：`nsis/*.exe` 与 `msi/*.msi`。首次构建会联网下载 NSIS / WiX；桌面调试用 `pnpm tauri:dev`。
+产物在 `src-tauri/target/release`
 
 #### Linux
 
@@ -126,12 +126,6 @@ pnpm tauri:android:build
 ## 项目协作
 本项目为解决自己对deepseek快速敏捷的使用需求而做，不免简陋，欢迎大家提出问题并贡献代码。
 贡献代码流程请参见：[协作规范](/docs/协作规范（草稿）.md)
-
-## CI
-
-- `.github/workflows/tauri-desktop.yml`：Windows NSIS/MSI（含启动测试）、macOS universal DMG、Linux deb/rpm。
-- `.github/workflows/tauri-android.yml`：Android APK。
-- `.github/workflows/pages.yml`：静态站点发布到 GitHub Pages。
 
 ## 许可证
 
