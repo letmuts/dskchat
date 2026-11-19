@@ -1,0 +1,3 @@
+[toolchain]
+# 与 Cargo.lock 一起锁定构建工具链；CI 从 rust-toolchain.toml 读取该版本。
+channel = "1.99.1"

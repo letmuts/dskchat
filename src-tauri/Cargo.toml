@@ -1,0 +1,60 @@
+[package]
+name = "chat-demo"
+version = "0.1.1"
+description = "DeepSeek API chat demo shell"
+authors = ["DeepSeek"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+# 桌面用 rlib，Android/iOS 需要 cdylib/staticlib
+name = "chat_demo_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+# 必须与下面 tauri 的版本线配套（2.11.x ↔ tauri-build 2.6.x），不可单独升到 2.7.x
+tauri-build = { version = "=2.6.3", features = [] }
+
+[dependencies]
+# Windows WebView 栈跟随 note-gen 已验证的组合：tauri 2.11.x / wry 0.55.1 /
+# tao 0.35.3 / webview2-com 0.38.x。tauri 2.12.x 曾在 Windows 10 22H2 +
+# WebView2 157 上复现 msedgewebview2.exe 启动即崩（msedge.dll / 0x80000003），
+# 升级前请整体评估，并确认 CI 的 Windows 启动冒烟通过。
+#
+# 运行时策略：不随包 WebView2（不使用 fixedRuntime）。桌面端使用系统 Evergreen
+# 运行时；安装器默认 downloadBootstrapper，缺少运行时会自动下载安装。
+# Cargo.lock 必须一起提交，它钉住 tauri-runtime / tauri-runtime-wry / wry /
+# tao 等传递依赖；只改本文件不足以保持这套组合。
+tauri = { version = "=2.11.5", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# 系统浏览器/文件打开，桌面与移动端通用
+tauri-plugin-opener = { version = "2", optional = true }
+
+# 桌面端单实例：重复双击时只唤起已有窗口，避免多进程争用同一 WebView2 数据目录
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-single-instance = "2"
+
+# 启动失败时弹原生错误框（仅 Windows）
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+
+# 模块槽位开关：打开一个 feature，就代表该模块的 Rust 实现可用，
+# platform_probe 会上报给前端；前端仍可用 ?native= / localStorage 覆盖选择。
+[features]
+# system 是外壳的基础能力（外链必须能打开），默认启用
+default = ["module-system"]
+module-secrets = []
+module-http = []
+module-storage = []
+module-archive = []
+module-system = ["dep:tauri-plugin-opener"]
+module-search = []
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+# 不使用 panic = "abort"：启动失败要能写日志/弹框，而不是静默以 0xC0000409 退出
+strip = true

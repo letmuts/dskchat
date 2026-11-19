@@ -1,0 +1,147 @@
+name: Build Tauri desktop
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            name: windows
+            args: ''
+            bundles: 'nsis,msi'
+            rust_targets: ''
+            artifacts: |
+              src-tauri/target/release/bundle/nsis/*.exe
+              src-tauri/target/release/bundle/msi/*.msi
+          - platform: macos-latest
+            name: macos-universal
+            args: '--target universal-apple-darwin'
+            bundles: 'dmg'
+            rust_targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
+            artifacts: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          - platform: ubuntu-22.04
+            name: linux
+            args: ''
+            bundles: 'deb,rpm'
+            rust_targets: ''
+            artifacts: |
+              src-tauri/target/release/bundle/deb/*.deb
+              src-tauri/target/release/bundle/rpm/*.rpm
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # 关键：target 必须装到 rust-toolchain.toml 锁定的工具链上，
+      # 不能装到 stable（否则 cargo 切到 1.99.1 后找不到交叉编译 target）
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.99.1'
+          targets: ${{ matrix.rust_targets }}
+
+      - name: Show active toolchain
+        shell: bash
+        run: |
+          rustup show active-toolchain
+          rustc --version
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            librsvg2-dev \
+            libdbus-1-dev \
+            patchelf
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check types
+        run: pnpm type
+
+      - name: Lint
+        run: pnpm lint
+
+      # 只解析依赖图，不编译；比 cargo check 快，且能发现 Cargo.lock 漂移
+      - name: Verify Rust lockfile
+        shell: bash
+        run: cargo metadata --locked --format-version 1 --manifest-path src-tauri/Cargo.toml > /dev/null
+
+      - name: Build desktop bundle
+        run: pnpm exec tauri build ${{ matrix.args }} --bundles ${{ matrix.bundles }}
+
+      # 先上传产物，冒烟失败时也能拿到安装包用于排查
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.name }}
+          if-no-files-found: error
+          path: ${{ matrix.artifacts }}
+
+      # 只在 Windows 上做启动冒烟：进程存活、主窗口标题正确、没有 startup.log
+      - name: Smoke test (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = 'src-tauri/target/release/chat-demo.exe'
+          $log = Join-Path $env:LOCALAPPDATA 'com.deepseek.chatdemo\startup.log'
+          if (-not (Test-Path $exe)) { throw "missing $exe" }
+          Get-Process chat-demo -ErrorAction SilentlyContinue | Stop-Process -Force
+          Remove-Item $log -ErrorAction SilentlyContinue
+          $process = Start-Process -FilePath $exe -PassThru `
+            -RedirectStandardOutput "$env:TEMP\chat-demo.out" `
+            -RedirectStandardError "$env:TEMP\chat-demo.err"
+          try {
+            $deadline = (Get-Date).AddSeconds(30)
+            $title = ''
+            while ((Get-Date) -lt $deadline) {
+              if ($process.HasExited) { throw "app exited early with code $($process.ExitCode)" }
+              $window = Get-Process -Id $process.Id -ErrorAction SilentlyContinue
+              if ($window) { $title = $window.MainWindowTitle }
+              if ($title -eq 'Chat Demo') { break }
+              Start-Sleep -Seconds 1
+            }
+            if ($title -ne 'Chat Demo') {
+              if (Test-Path $log) { Get-Content $log -Tail 50 }
+              throw "main window did not appear within 30s (title: '$title')"
+            }
+            if (Test-Path $log) { Get-Content $log; throw 'app reported a startup failure' }
+          }
+          finally {
+            if (-not $process.HasExited) { & taskkill /PID $process.Id /T /F | Out-Null }
+          }

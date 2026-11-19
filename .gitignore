@@ -1,0 +1,18 @@
+node_modules/
+dist/
+build/
+.pnpm-store/
+.cache/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+tmp/
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/
+target/
+
+# 注意：桌面端使用系统 Evergreen WebView2，不再随包固定运行时。
