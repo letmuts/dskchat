@@ -9,7 +9,7 @@ build/
 .env.*
 !.env.example
 tmp/
-
+my-release-key.keystore
 # Rust / Tauri
 src-tauri/target/
 src-tauri/gen/
