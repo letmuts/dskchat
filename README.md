@@ -121,7 +121,7 @@ pnpm tauri:android:build
 `tauri:android:init` 会自动执行 `scripts/patch-android.mjs` 补 `RECORD_AUDIO` / `INTERNET`；APK 在 `src-tauri/gen/android/app/build/outputs/apk/universal/release/`。上架 Google Play 用 `pnpm tauri android build --aab`，签名配置见 [Android 打包](docs/ANDROID.md)。
 
 ## 下一步计划
-0.0.2
+0.1.2
 - 修复安卓端录音功能bug
 - 修复app端界面显示不正常
 - 修复历史记录无法导出
