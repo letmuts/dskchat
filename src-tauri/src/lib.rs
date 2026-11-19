@@ -108,7 +108,7 @@ fn startup_log_path() -> Option<std::path::PathBuf> {
                 .ok()
                 .and_then(|exe| exe.parent().map(|parent| parent.to_path_buf()))
         })?;
-    let dir = base.join("com.letmut.dskchat");
+    let dir = base.join("com.letmuts.dskchat");
     std::fs::create_dir_all(&dir).ok()?;
     Some(dir.join("startup.log"))
 }

@@ -17,9 +17,9 @@
 | npm 包名 | `dskchat` | [package.json](../package.json) `name` | 仅项目元数据，不影响运行时；`pnpm` 输出会显示它 |
 | Rust 包 / 二进制 | `dskchat` → `dskchat.exe` | [Cargo.toml](../src-tauri/Cargo.toml) `[package] name` | 决定 exe 文件名与进程名，CI 冒烟按它断言 |
 | Rust lib | `dskchat_lib` | `Cargo.toml` `[lib] name` + [main.rs](../src-tauri/src/main.rs) | 两者必须一致，否则编译失败 |
-| Bundle identifier | `com.letmut.dskchat` | `tauri.conf.json` `identifier` | 同时是 **Android applicationId** 与 Windows 数据目录名 |
-| Windows 数据目录 | `%LOCALAPPDATA%\com.letmut.dskchat` | 由 identifier 推导 | 见 §4.1；装在非系统盘时另有兜底路径 |
-| 启动日志 | `%LOCALAPPDATA%\com.letmut.dskchat\startup.log` | [lib.rs](../src-tauri/src/lib.rs) 硬编码 | 必须与 identifier 一致，否则文档/排错会指错目录 |
+| Bundle identifier | `com.letmuts.dskchat` | `tauri.conf.json` `identifier` | 同时是 **Android applicationId** 与 Windows 数据目录名 |
+| Windows 数据目录 | `%LOCALAPPDATA%\com.letmuts.dskchat` | 由 identifier 推导 | 见 §4.1；装在非系统盘时另有兜底路径 |
+| 启动日志 | `%LOCALAPPDATA%\com.letmuts.dskchat\startup.log` | [lib.rs](../src-tauri/src/lib.rs) 硬编码 | 必须与 identifier 一致，否则文档/排错会指错目录 |
 | localStorage 前缀 | `chat-demo:`（**未改**） | [settings.ts](../web/services/settings.ts)、[secrets.ts](../web/platform/modules/secrets.ts)、[switches.ts](../web/platform/switches.ts) | 刻意保留，见 §3 |
 | IndexedDB 名 | `chat-demo`（**未改**） | [db.ts](../web/services/chat/db.ts) | 刻意保留，见 §3 |
 | 历史导出文件名 | `deepseek_data-<日期>.zip`（**未改**） | [backup.ts](../web/services/chat/backup.ts)、[format.ts](../web/services/chat/history/format.ts) | 上游导入导出格式约定，改名没有收益 |
@@ -35,7 +35,7 @@
 | 键 | 原值 | 新值 |
 |---|---|---|
 | `productName` | `Chat Demo` | `dskchat` |
-| `identifier` | `com.deepseek.chatdemo` | `com.letmut.dskchat` |
+| `identifier` | `com.deepseek.chatdemo` | `com.letmuts.dskchat` |
 | `app.windows[0].title` | `Chat Demo` | `dskchat` |
 | `bundle.shortDescription` | `DeepSeek API chat demo` | `dskchat — DeepSeek API chat client` |
 | `bundle.longDescription` | `A static chat client for the DeepSeek API. …` | `dskchat: a static chat client for the DeepSeek API. …` |
@@ -49,7 +49,7 @@
 | [Cargo.toml](../src-tauri/Cargo.toml) | `name = "chat-demo"` → `dskchat`；`description` 同步；`[lib] name = "chat_demo_lib"` → `dskchat_lib` |
 | [Cargo.lock](../src-tauri/Cargo.lock) | 根包名同步（cargo 自动重写，包条目按字母序移动；依赖版本未变） |
 | [main.rs](../src-tauri/src/main.rs) | `chat_demo_lib::run()` → `dskchat_lib::run()` |
-| [lib.rs](../src-tauri/src/lib.rs) | stderr：`dskchat.exe failed to start: {message}`；错误框标题：`dskchat.exe 启动失败`；`startup.log` 目录：`com.letmut.dskchat` |
+| [lib.rs](../src-tauri/src/lib.rs) | stderr：`dskchat.exe failed to start: {message}`；错误框标题：`dskchat.exe 启动失败`；`startup.log` 目录：`com.letmuts.dskchat` |
 
 错误框标题里特意带 `dskchat.exe`：用户反馈问题时能直接对应到进程/文件名。
 
@@ -67,8 +67,8 @@
 
 | 文件 | 改动 |
 |---|---|
-| [.github/workflows/tauri-desktop.yml](../.github/workflows/tauri-desktop.yml) | exe 路径 `dskchat.exe`；进程名 `dskchat`；`%TEMP%\dskchat.out/.err`；日志路径 `com.letmut.dskchat\startup.log`；窗口标题断言 `'dskchat'` |
-| [docs/TAURI.md](./TAURI.md) | 数据目录/日志路径 3 处改为 `com.letmut.dskchat`；冒烟断言标题改为 `dskchat` |
+| [.github/workflows/tauri-desktop.yml](../.github/workflows/tauri-desktop.yml) | exe 路径 `dskchat.exe`；进程名 `dskchat`；`%TEMP%\dskchat.out/.err`；日志路径 `com.letmuts.dskchat\startup.log`；窗口标题断言 `'dskchat'` |
+| [docs/TAURI.md](./TAURI.md) | 数据目录/日志路径 3 处改为 `com.letmuts.dskchat`；冒烟断言标题改为 `dskchat` |
 | [docs/ANDROID.md](./ANDROID.md) | keystore 示例 alias `chatdemo` → `dskchat`（只是示例名，不影响已生成的 keystore） |
 | [web/services/chat/history/README.md](../web/services/chat/history/README.md) | 项目名叙述 “chat-demo 使用 …” → “dskchat 使用 …”（导出格式 `deepseek_data-*.zip` 不变） |
 | [README.en.md](../README.en.md) / [README.zh-CN.md](../README.zh-CN.md) | 标题与首段品牌名改为 `dskchat` |
@@ -91,13 +91,13 @@
 ### 4.1 Windows 本地数据目录
 
 - 旧：`%LOCALAPPDATA%\com.deepseek.chatdemo`
-- 新：`%LOCALAPPDATA%\com.letmut.dskchat`
+- 新：`%LOCALAPPDATA%\com.letmuts.dskchat`
 
 WebView2 的 localStorage / IndexedDB 都保存在这个目录里，**换 identifier 不会自动带走数据**。由于页面源（macOS/Linux 为 `tauri://localhost`，Windows 为 `http(s)://tauri.localhost`）与存储键都没有变，可以手动迁移：
 
 1. 完全退出应用（含任务栏残留进程）。
 2. 备份旧目录：把 `%LOCALAPPDATA%\com.deepseek.chatdemo` 复制一份留底。
-3. 把旧目录内容复制到 `%LOCALAPPDATA%\com.letmut.dskchat`（目标目录不存在时先创建）。
+3. 把旧目录内容复制到 `%LOCALAPPDATA%\com.letmuts.dskchat`（目标目录不存在时先创建）。
 4. 启动应用，确认会话列表与 API Key 都在；确认后旧目录可删除。
 
 注意事项：
@@ -116,7 +116,7 @@ WebView2 的 localStorage / IndexedDB 都保存在这个目录里，**换 identi
 
 ### 4.3 Android
 
-`identifier` 决定 applicationId（现为 `com.letmut.dskchat`）：
+`identifier` 决定 applicationId（现为 `com.letmuts.dskchat`）：
 
 - 新 APK 不能覆盖安装旧包，需先卸载旧应用；
 - 旧应用数据不会迁移，按全新安装处理；
@@ -182,4 +182,4 @@ rg -n 'Chat Demo|chat-demo|chat_demo|chatdemo|Deskchat|com\.deepseek\.chatdemo' 
 
 | 日期 | 版本 | 变更 |
 |---|---|---|
-| 2026-11-19 | 0.1.1 | Chat Demo / chat-demo / com.deepseek.chatdemo → dskchat / dskchat / com.letmut.dskchat；存储键与导出格式保持不变 |
+| 2026-11-19 | 0.1.1 | Chat Demo / chat-demo / com.deepseek.chatdemo → dskchat / dskchat / com.letmuts.dskchat；存储键与导出格式保持不变 |

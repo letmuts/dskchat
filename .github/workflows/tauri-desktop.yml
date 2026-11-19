@@ -119,7 +119,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $exe = 'src-tauri/target/release/dskchat.exe'
-          $log = Join-Path $env:LOCALAPPDATA 'com.letmut.dskchat\startup.log'
+          $log = Join-Path $env:LOCALAPPDATA 'com.letmuts.dskchat\startup.log'
           if (-not (Test-Path $exe)) { throw "missing $exe" }
           Get-Process dskchat -ErrorAction SilentlyContinue | Stop-Process -Force
           Remove-Item $log -ErrorAction SilentlyContinue
