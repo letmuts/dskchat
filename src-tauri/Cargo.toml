@@ -13,8 +13,8 @@ name = "dskchat_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-# 必须与下面 tauri 的版本线配套（2.11.x ↔ tauri-build 2.6.x），不可单独升到 2.7.x
-tauri-build = { version = "=2.6.3", features = [] }
+
+tauri-build = { version = "=2.7.0", features = [] }
 
 [dependencies]
 # Windows WebView 栈跟随 note-gen 已验证的组合：tauri 2.11.x / wry 0.55.1 /
@@ -26,7 +26,7 @@ tauri-build = { version = "=2.6.3", features = [] }
 # 运行时；安装器默认 downloadBootstrapper，缺少运行时会自动下载安装。
 # Cargo.lock 必须一起提交，它钉住 tauri-runtime / tauri-runtime-wry / wry /
 # tao 等传递依赖；只改本文件不足以保持这套组合。
-tauri = { version = "=2.11.5", features = [] }
+tauri = { version = "=2.12", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # 系统浏览器/文件打开，桌面与移动端通用

@@ -21,7 +21,7 @@
     "tauri:android:build": "tauri android build --apk --target aarch64"
   },
   "dependencies": {
-    "@tauri-apps/api": "2.11.1",
+    "@tauri-apps/api": "2.12.5",
     "@types/katex": "^0.16.5",
     "@types/mdast": "~4.0.3",
     "@types/prismjs": "^1.26.1",
@@ -48,7 +48,7 @@
     "@rspack/core": "2.0.2",
     "@rspack/dev-server": "2.0.1",
     "@swc/helpers": "0.5.23",
-    "@tauri-apps/cli": "2.11.3",
+    "@tauri-apps/cli": "2.12.6",
     "@types/node": "~20.9.2",
     "cross-env": "^10.1.0",
     "oxfmt": "0.48.0",
