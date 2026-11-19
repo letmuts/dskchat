@@ -6,6 +6,14 @@
 
 点击 [在线体验](https://deepseek-ai.github.io/chat-demo/) 即可使用，也可以前往 [Releases](https://github.com/deepseek-ai/deepseek-chat-demo/releases) 下载压缩包，解压后双击 `index.html` 在本地使用，无需安装或构建。首次使用时，请在设置中填写 API Key。
 
+## 环境要求
+
+| 目标 | 需要 |
+|---|---|
+| Web | Node.js 22.12+、pnpm 10 |
+| Windows 桌面 | Rust 1.99.1（由 `rust-toolchain.toml` 固定）、WebView2（Win11 预装；Win10 随 Edge/更新安装，缺失时安装包自动补装） |
+| Android | JDK 17、Android SDK 34、NDK 26，以及 [Android 打包](docs/ANDROID.md) 里的四个 Rust target |
+
 ## 运行
 
 准备 Node.js 22.12+ 和 pnpm：
@@ -37,7 +45,13 @@ pnpm tauri:android:init   # 首次：生成 Android 工程（需要 JDK 17 + SDK
 pnpm tauri:android:build  # 生成 APK
 ```
 
-桌面端使用系统 Evergreen WebView2（Win11 预装；Win10 多数已随 Edge/Windows Update 安装，缺失时由安装包自动下载）。启动失败会写入 `%LOCALAPPDATA%\com.deepseek.chatdemo\startup.log` 并弹出原生错误框；程序装在非系统盘时，WebView2 数据目录会自动落到程序同卷目录。
+桌面端使用系统 Evergreen WebView2，不随包运行时；安装包使用 Tauri 的 `downloadBootstrapper`，缺失时自动下载安装。
+
+- 外壳是单实例，第二次启动只唤起已有窗口。
+- 启动失败会写入 `%LOCALAPPDATA%\com.deepseek.chatdemo\startup.log` 并弹出原生错误框。
+- 程序装在非系统盘时，WebView2 数据目录会自动落到程序同卷目录。
+
+`node_modules/`、`dist/`、`src-tauri/target/`、`src-tauri/gen/` 只用于构建，已被 gitignore；前端产物会嵌入桌面二进制，运行时不需要这些目录。
 
 桌面与移动共用 `dist/`，`pnpm build` 仍然是最小可运行的静态站点。需要把部分能力换成 Rust 时，
 在 `src-tauri` 打开对应的 Cargo feature 即可，前端会在启动时切换，探测失败自动回落：
@@ -45,6 +59,10 @@ pnpm tauri:android:build  # 生成 APK
 - [原生模块槽位：TS ↔ Rust 怎么切换](docs/PLATFORM_MODULES.md)
 - [Tauri 外壳：构建、CSP、发布](docs/TAURI.md)
 - [Android 打包](docs/ANDROID.md)
+
+## 模块现状
+
+前端默认使用 Web 实现。Rust 槽位按 Cargo feature 选择性启用，目前只有 `system`（打开外链）已实现；`secrets`、`http`、`storage`、`archive`、`search` 目前是契约/占位，已接线的模块会自动回落到 Web 实现，未接线的模块保持 Web 实现。完整表格见[原生模块槽位](docs/PLATFORM_MODULES.md)。
 
 ## 功能
 
@@ -56,7 +74,7 @@ pnpm tauri:android:build  # 生成 APK
 
 ## 数据
 
-API Key 和设置保存在浏览器 localStorage，会话及附件原件保存在 IndexedDB，本地数据按浏览器用户配置和站点源（origin）隔离。发送对话、上传附件和使用语音功能时，相应内容会提交给配置的 API 服务。
+API Key 和设置保存在 WebView 的 localStorage（Web 构建是浏览器 profile，桌面端是 WebView2 profile）。原生系统钥匙串槽位尚未实现，因此 Key 以明文保存。会话及附件原件保存在 IndexedDB，本地数据按浏览器用户配置和站点源（origin）隔离。发送对话、上传附件和使用语音功能时，相应内容会提交给配置的 API 服务。
 
 设置中的历史导入导出使用 ZIP 格式。导入会在确认并校验成功后替换全部本地会话和附件；导出包含会话与本地可用的图片原件，不包含 API Key、设置或非图片附件原件。格式与保留范围见[历史导入导出](web/services/chat/history/README.md)。
 
@@ -98,7 +116,19 @@ src-tauri/             原生外壳（桌面 + Android）
   src/modules/         Rust 模块槽位，一个模块一个 Cargo feature
   tauri.conf.json      窗口、CSP、打包目标
   capabilities/        IPC 权限
+  icons/               各平台应用图标
+
+docs/                  Tauri、平台模块与 Android 文档
+scripts/               Android 权限补丁与 CI 辅助脚本
+.github/workflows/     桌面、Android 与 GitHub Pages CI
+rust-toolchain.toml    锁定的 Rust 工具链
 ```
+
+## CI
+
+- `.github/workflows/tauri-desktop.yml`：Windows NSIS/MSI（含启动冒烟）、macOS universal DMG、Linux deb/rpm。
+- `.github/workflows/tauri-android.yml`：Android APK。
+- `.github/workflows/pages.yml`：静态站点发布到 GitHub Pages。
 
 ## 许可证
 

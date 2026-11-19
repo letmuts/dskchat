@@ -6,6 +6,14 @@ A static chat demo powered by the DeepSeek API. No application backend is requir
 
 You can [try the app online](https://deepseek-ai.github.io/chat-demo/) or download the archive from [Releases](https://github.com/deepseek-ai/deepseek-chat-demo/releases), extract it, and double-click `index.html` to use it locally without installation or a build. Enter your API key in Settings before your first chat.
 
+## Requirements
+
+| Target | Requirements |
+|---|---|
+| Web | Node.js 22.12+ and pnpm 10 |
+| Windows desktop | Rust 1.99.1 (pinned by `rust-toolchain.toml`), WebView2 (Windows 11 preinstalled; Windows 10 via Edge/Windows Update, and the installer bootstraps it when missing) |
+| Android | JDK 17, Android SDK 34, NDK 26, and the four Rust Android targets listed in [Android packaging](docs/ANDROID.md) |
+
 ## Getting started
 
 Install Node.js 22.12+ and pnpm, then run:
@@ -37,15 +45,25 @@ pnpm tauri:android:init   # first run: generate the Android project (needs JDK 1
 pnpm tauri:android:build  # build an APK
 ```
 
-Desktop builds use the system Evergreen WebView2 runtime (preinstalled on Windows 11; most Windows 10 devices have it via Edge/Windows Update, and the installer downloads it when missing). Startup failures are written to `%LOCALAPPDATA%\com.deepseek.chatdemo\startup.log` and shown in a native dialog. When the app is installed on a non-system drive, the WebView2 data folder is placed next to the executable.
+Desktop builds use the system Evergreen WebView2 runtime; no runtime is bundled, and the installer uses Tauri's `downloadBootstrapper` to install it when missing.
 
-Both targets consume `dist/`, so `pnpm build` still produces the smallest runnable static site.
+- The shell is single-instance; a second launch focuses the existing window.
+- Startup failures are written to `%LOCALAPPDATA%\com.deepseek.chatdemo\startup.log` and shown in a native dialog.
+- When installed on a non-system drive, the WebView2 data folder is placed next to the executable.
+
+`node_modules/`, `dist/`, `src-tauri/target/`, and `src-tauri/gen/` are build-time only and gitignored. The frontend is embedded into the desktop binary, so none of them is required at runtime.
+
+Desktop and Android both consume `dist/`, so `pnpm build` still produces the smallest runnable static site.
 To move a capability into Rust, enable the matching Cargo feature in `src-tauri`; the frontend
 switches at startup and falls back automatically when a module is unavailable:
 
 - [Platform module slots (TS ↔ Rust)](docs/PLATFORM_MODULES.md)
 - [Tauri shell: build, CSP, release](docs/TAURI.md)
 - [Android packaging](docs/ANDROID.md)
+
+## Module status
+
+The frontend uses the Web implementations by default. Rust slots are opt-in per Cargo feature; only `system` (opening external links) is implemented today. `secrets`, `http`, `storage`, `archive`, and `search` exist as contracts/placeholders; wired modules fall back to the Web implementation automatically, and unwired ones stay on the Web side. See [Platform module slots](docs/PLATFORM_MODULES.md) for the table.
 
 ## Features
 
@@ -57,7 +75,7 @@ switches at startup and falls back automatically when a module is unavailable:
 
 ## Data and storage
 
-Your API key and settings are stored in the browser's localStorage. Conversations and original attachments are stored in IndexedDB. Local data is isolated by browser profile and site origin. Sending messages, uploading attachments, and using speech features sends the relevant content to the configured API service.
+Your API key and settings are stored in the WebView's localStorage (the browser profile on the Web build, WebView2's profile on desktop). The native OS keychain slot is not implemented yet, so the key is stored as plain text. Conversations and original attachments are stored in IndexedDB. Local data is isolated by browser profile and site origin. Sending messages, uploading attachments, and using speech features sends the relevant content to the configured API service.
 
 History import and export in Settings use ZIP archives. After confirmation and successful validation, importing replaces all local conversations and attachments. Exports include conversations and locally available original images, but exclude API keys, settings, and original non-image attachments. See the [history import/export documentation (Chinese)](web/services/chat/history/README.md) for the archive format and preservation details.
 
@@ -99,7 +117,19 @@ src-tauri/             Native shell (desktop + Android)
   src/modules/         Rust module slots, one Cargo feature per module
   tauri.conf.json      Window, CSP, bundle targets
   capabilities/        IPC permissions
+  icons/               App icons per platform
+
+docs/                  Tauri, platform-module, and Android documentation
+scripts/               Android permission patch and CI helpers
+.github/workflows/     Desktop, Android, and GitHub Pages CI
+rust-toolchain.toml    Pinned Rust toolchain
 ```
+
+## CI
+
+- `.github/workflows/tauri-desktop.yml`: Windows NSIS/MSI with a startup smoke test, macOS universal DMG, Linux deb/rpm.
+- `.github/workflows/tauri-android.yml`: Android APK.
+- `.github/workflows/pages.yml`: static site for GitHub Pages.
 
 ## License
 
