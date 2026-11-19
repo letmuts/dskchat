@@ -120,25 +120,18 @@ pnpm tauri:android:build
 
 `tauri:android:init` 会自动执行 `scripts/patch-android.mjs` 补 `RECORD_AUDIO` / `INTERNET`；APK 在 `src-tauri/gen/android/app/build/outputs/apk/universal/release/`。上架 Google Play 用 `pnpm tauri android build --aab`，签名配置见 [Android 打包](docs/ANDROID.md)。
 
-## 开发
+## 下一步计划
+0.0.2
+- 修复安卓端录音功能bug
+- 修复app端界面显示不正常
+- 修复历史记录无法导出
 
-| 命令                       | 用途                             |
-| -------------------------- | -------------------------------- |
-| `pnpm install`             | 安装依赖                         |
-| `pnpm dev`                 | 启动 Web 开发服务器（8090）      |
-| `pnpm build`               | 构建静态站点到 `dist/`           |
-| `pnpm build:tauri`         | 构建给原生外壳加载的前端产物     |
-| `pnpm tauri:dev`           | 桌面端开发（rspack + 窗口）      |
-| `pnpm tauri:build`         | 桌面端安装包                     |
-| `pnpm tauri:android:init`  | 生成 Android 工程（首次）        |
-| `pnpm tauri:android:build` | Android APK                      |
-| `pnpm type`                | TypeScript 类型检查              |
-| `pnpm lint`                | oxlint 检查                      |
-| `pnpm format`              | oxfmt 格式化                     |
+0.0.3
+- 美化图标
+- 优化应用内提示
+.....
 
-[rspack.config.ts](rspack.config.ts) 默认连接 `https://api.deepseek.com`。`createConfig({ apiOrigin, target, nativeModules, devServer })` 支持自定义 API 地址、打包目标和原生模块开关。
 
-聊天默认使用 `deepseek-flash`，通过 Anthropic 兼容的 Messages / Files API 通信；语音使用 ASR / TTS 接口。请求使用搜索、链接阅读、标题和 `latest_reminder` 等扩展，接入服务需支持相应能力。附件实际支持的格式以服务端校验为准。
 
 ## CI
 
