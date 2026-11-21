@@ -1,7 +1,12 @@
 import { create } from 'zustand'
 import type { LinkedMessage, TranslationMessage } from '../i18n/index.js'
 import { platform } from '../platform/index.js'
-import { isUploadImageOversized } from '../utils/resizeUploadImage.js'
+import {
+  isUploadImageOversized,
+  MANY_IMAGE_COUNT,
+  SERVER_IMAGE_EDGE,
+  SERVER_MANY_IMAGE_EDGE,
+} from '../utils/resizeUploadImage.js'
 import { classifyApiError, getUploadErrorInfo, isRetryableApiError } from './api/errors.js'
 import type { FilePurpose } from './api/types.js'
 import type { FileAttachment } from './chat/types.js'
@@ -215,10 +220,21 @@ export const cancelUpload = (id: string) => {
 }
 
 /**
- * 检查旧图片的 file_id。超限返回 null 以触发补传，无法读取原件时保留原 ID。
+ * 服务端按整次请求统计图片张数来定单边长边上限：不超过 15 张是 8192，超过则收紧到 4096。
+ * 只统计真正会发出去的图片（有 serverId、且不是长文本检索附件）。
+ */
+const uploadImageEdge = (files: FileAttachment[]) =>
+  files.filter((file) => file.isImage && !file.retrieval && file.serverId).length > MANY_IMAGE_COUNT
+    ? SERVER_MANY_IMAGE_EDGE
+    : SERVER_IMAGE_EDGE
+
+/**
+ * 检查旧图片的 file_id。超出服务端上限返回 null 以触发补传，无法读取原件时保留原 ID。
  * 只检查有 serverId、尚未确认过尺寸且本地仍有原件的图片；长文本检索附件不在此列。
+ * 尺寸优先用图片头部解析，避免为一张旧图分配整幅位图（安卓端 4800 万像素约 190 MB）。
  */
 export const checkImageFileIds = async (files: FileAttachment[], signal: AbortSignal) => {
+  const limit = uploadImageEdge(files)
   const checked = new Map<string, string | null>()
   for (const file of files) {
     if (
@@ -233,7 +249,7 @@ export const checkImageFileIds = async (files: FileAttachment[], signal: AbortSi
     signal.throwIfAborted()
     const oversized = await platform.storage
       .loadFile(file.id)
-      .then((blob) => blob && isUploadImageOversized(blob))
+      .then((blob) => (blob ? isUploadImageOversized(blob, limit) : undefined))
       .catch(() => undefined)
     if (oversized === undefined) {
       continue

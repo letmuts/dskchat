@@ -16,10 +16,16 @@ import { fail } from './errors.js'
 import type { ChatMessage, FileEntry, Fragment, SessionFile } from './format.js'
 import { sessionFilesDir } from './paths.js'
 
+/** 会话目录下应存在原件的附件；kind 决定导入时如何补充 MIME。 */
+export type ArchiveAttachment = {
+  id: string
+  kind: 'image' | 'retrieval'
+}
+
 export type LocalSession = {
   session: Session
-  /** 本会话目录下应存在的图片：ZIP 条目名 → 文件 ID */
-  images: Map<string, string>
+  /** 本会话目录下应存在的附件：ZIP 条目名 → 附件 */
+  attachments: Map<string, ArchiveAttachment>
 }
 
 const time = (value: string) => Date.parse(value)
@@ -279,7 +285,7 @@ const buildTree = (file: SessionFile): Pick<Session, 'messages' | 'rootMessageId
   return { messages, rootMessageId: current.id }
 }
 
-/** 转换单个会话，并列出本会话目录下需要从 ZIP 读取的图片。 */
+/** 转换单个会话，并列出本会话目录下需要从 ZIP 读取的附件。 */
 export const toLocalSession = (file: SessionFile): LocalSession => {
   const session: Session = {
     id: file.id,
@@ -289,7 +295,7 @@ export const toLocalSession = (file: SessionFile): LocalSession => {
     updatedAt: time(file.updated_at),
     ...buildTree(file),
   }
-  const images = new Map<string, string>()
+  const attachments = new Map<string, ArchiveAttachment>()
   for (const message of file.messages) {
     for (const item of message.fragments) {
       if (item.type !== 'FILE') {
@@ -304,16 +310,19 @@ export const toLocalSession = (file: SessionFile): LocalSession => {
         if (path === undefined) {
           continue
         }
-        // 图片只能在本会话目录下，同一条目不能对应不同文件。
+        // 附件只能在本会话目录下，同一条目不能对应不同文件。
         if (
           !path.startsWith(sessionFilesDir(file.id)) ||
-          (images.get(path) ?? entry.id) !== entry.id
+          (attachments.get(path)?.id ?? entry.id) !== entry.id
         ) {
           fail('backupInvalidFiles')
         }
-        images.set(path, entry.id)
+        attachments.set(path, {
+          id: entry.id,
+          kind: entry.is_retrieval ? 'retrieval' : 'image',
+        })
       }
     }
   }
-  return { session, images }
+  return { session, attachments }
 }

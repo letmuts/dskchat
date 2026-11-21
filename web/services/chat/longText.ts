@@ -17,6 +17,10 @@ const MIN_LONG_TEXT_CHARS = 4000
 const CHUNK_CHARS = 1400
 const CHUNK_OVERLAP = 180
 const MAX_CACHED_DOCUMENTS = 3
+/** 单次请求最多检索几份长文本，避免多份附件把预算切得过碎。 */
+const MAX_RETRIEVAL_FILES = 4
+/** 分给单份文档的最低预算；低于这个值就不再追加新文档。 */
+const MIN_EXCERPT_TOKENS = 400
 
 type Chunk = { order: number; text: string }
 type DocumentIndex = { chunks: Chunk[]; outline: string[] }
@@ -26,6 +30,17 @@ export type LongTextPlan = {
   /** 只落本地、不会进入 Files API 的长文本附件。 */
   file: FileAttachment
   blob: Blob
+}
+
+/**
+ * 当前提问的长文本附件读取失败：没有内容可检索，请求应当直接报错，
+ * 而不是带着“内容已保存为附件”的说明去问一个模型看不到的问题。
+ */
+export class LongTextAttachmentError extends Error {
+  constructor(readonly fileName: string) {
+    super(`long text attachment unavailable: ${fileName}`)
+    this.name = 'LongTextAttachmentError'
+  }
 }
 
 /** 粗略 token 估算：CJK 按 1 token/字，ASCII 按 3 字符/token，再给结构化文本加一点余量。 */
@@ -428,22 +443,24 @@ const buildContext = async (
   query: string,
   budgetTokens: number,
   signal: AbortSignal
-): Promise<string> => {
+): Promise<string | null> => {
   signal.throwIfAborted()
   const index = await loadIndex(file)
   signal.throwIfAborted()
+  // 原件丢失或索引失败：返回 null，由调用方决定报错还是跳过。
   if (!index || index.chunks.length === 0) {
-    return ''
+    return null
   }
-  const outlineBudget = Math.min(1400, Math.floor(budgetTokens * 0.25))
+  const outlineBudget = Math.min(1400, Math.max(0, Math.floor(budgetTokens * 0.25)))
   const outline = truncateToTokens(
     index.outline.map((heading, position) => `${position + 1}. ${heading}`).join('\n'),
     outlineBudget
   )
-  const remaining = Math.max(400, budgetTokens - estimateTokens(outline))
-  const chunks = selectChunks(index.chunks, query, remaining)
-  if (chunks.length === 0) {
-    return ''
+  // 正文只能落在剩余预算里，否则多份附件的开销会叠加超发。
+  const remaining = budgetTokens - estimateTokens(outline) - 1
+  const chunks = remaining > 0 ? selectChunks(index.chunks, query, remaining) : []
+  if (chunks.length === 0 && !outline) {
+    return null
   }
   const body = chunks
     .map(
@@ -454,7 +471,7 @@ const buildContext = async (
   const sections = [
     `【${translate('longTextAttachmentLabel', { name: file.name })}】`,
     outline ? `${translate('longTextOutlineLabel')}：\n${outline}` : '',
-    `${translate('longTextExcerptsLabel')}：\n${body}`,
+    body ? `${translate('longTextExcerptsLabel')}：\n${body}` : '',
   ].filter(Boolean)
   return sections.join('\n\n')
 }
@@ -514,16 +531,16 @@ export const prepareLongTextQuestion = async (
   history: Message[],
   signal: AbortSignal
 ): Promise<UserMessage> => {
-  const files = [
-    // 即使用户上一轮回答失败，历史里的长文本附件仍应可检索，否则换一个问题就丢了上下文。
-    ...history.flatMap((message) => (message.role === 'user' ? message.files : [])),
-    // 当前问题自己的附件放在最后，保证 slice(-4) 优先保留本轮文档。
-    ...question.files,
-  ]
-    .filter((file) => file.retrieval)
-    .filter((file, index, all) => all.findIndex((item) => item.id === file.id) === index)
-    // 只检索最近几份长文本，避免多个附件把预算切得过碎。
-    .slice(-4)
+  // 本轮提问自己的附件优先：它决定这次请求有没有内容可答。
+  const current = question.files.filter((file) => file.retrieval)
+  const currentIds = new Set(current.map((file) => file.id))
+  // 即使用户上一轮回答失败，历史里的长文本附件仍应可检索，否则换一个问题就丢了上下文。
+  const historical = history
+    .flatMap((message) => (message.role === 'user' ? message.files : []))
+    .filter((file) => file.retrieval && !currentIds.has(file.id))
+  // 只检索最近几份长文本，避免多个附件把预算切得过碎。
+  const historySlots = Math.max(0, MAX_RETRIEVAL_FILES - current.length)
+  const files = [...current, ...(historySlots > 0 ? historical.slice(-historySlots) : [])]
   if (files.length === 0) {
     return question
   }
@@ -534,7 +551,7 @@ export const prepareLongTextQuestion = async (
     2000,
     Math.min(10000, MAX_REQUEST_TOKENS - historyTokens - questionTokens - 800)
   )
-  const perFile = Math.max(800, Math.floor(available / files.length))
+  const perFile = Math.max(MIN_EXCERPT_TOKENS, Math.floor(available / files.length))
   // 首轮的长文本消息带有“已保存为附件”的说明，检索时只用说明前的实际问题。
   const query =
     question.content
@@ -542,15 +559,32 @@ export const prepareLongTextQuestion = async (
       .map((part) => part.trim())
       .find(Boolean) ?? question.content
   const contexts: string[] = []
+  let used = 0
   for (const file of files) {
     signal.throwIfAborted()
+    // 单份文档不超过平均份额，也不超过剩余预算；连最小片段都放不下时停止追加。
+    const budget = Math.min(perFile, available - used)
+    if (budget < MIN_EXCERPT_TOKENS && contexts.length > 0) {
+      break
+    }
     try {
-      const context = await buildContext(file, query, perFile, signal)
+      const context = await buildContext(file, query, budget, signal)
       if (context) {
         contexts.push(context)
+        used += estimateTokens(context)
+      } else if (currentIds.has(file.id)) {
+        throw new LongTextAttachmentError(file.name)
       }
-    } catch {
-      // 单个附件损坏不应阻断整轮；其余附件和原问题仍然可发。
+    } catch (error) {
+      if (signal.aborted || error instanceof LongTextAttachmentError) {
+        throw error
+      }
+      // 本轮提问的附件读不出来必须报错；历史附件缺失只影响参考片段，跳过并留痕。
+      if (currentIds.has(file.id)) {
+        throw new LongTextAttachmentError(file.name)
+      }
+      // eslint-disable-next-line no-console
+      console.error('[longText] 历史长文本附件无法检索，已跳过', file.id, error)
     }
   }
   if (contexts.length === 0) {

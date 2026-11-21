@@ -1,4 +1,4 @@
-/** ZIP 条目名。条目顺序固定：manifest → user（可能缺失）→ 全部会话 JSON → index → 全部图片。 */
+/** ZIP 条目名。条目顺序固定：manifest → user（可能缺失）→ 全部会话 JSON → index → 全部附件原件。 */
 
 export const MANIFEST_PATH = 'manifest.json'
 export const USER_PATH = 'user.json'
@@ -6,7 +6,7 @@ export const INDEX_PATH = 'chat_session_index.json'
 
 export const sessionPath = (sessionId: string) => `chat_sessions/${sessionId}.json`
 
-/** 会话自己的图片目录，带结尾斜杠 */
+/** 会话自己的附件目录（图片与长文本检索附件），带结尾斜杠 */
 export const sessionFilesDir = (sessionId: string) => `chat_sessions/${sessionId}_files/`
 
 /** 会话 JSON 条目对应的会话 ID；其他条目返回 null */
@@ -20,5 +20,5 @@ const safeName = (name: string) => {
 }
 
 /** chat_sessions/{session_id}_files/{file_id}_{file_name}；与 ZIP 读写端一致使用 NFC。 */
-export const imagePath = (sessionId: string, fileId: string, fileName: string) =>
+export const attachmentPath = (sessionId: string, fileId: string, fileName: string) =>
   `${sessionFilesDir(sessionId)}${safeName(fileId)}_${safeName(fileName)}`.normalize('NFC')

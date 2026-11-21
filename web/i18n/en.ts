@@ -155,6 +155,8 @@ export const en = {
   longTextOutlineLabel: 'Document outline',
   longTextExcerptsLabel: 'Relevant excerpts',
   longTextChunkLabel: 'Excerpt {index}',
+  longTextAttachmentUnavailable:
+    'The local copy of the long-text attachment "{name}" is missing, so its content cannot be retrieved. The request was not sent; paste the text again and resend.',
   deactivatedThinkTooltip: 'Think before responding to solve reasoning problems',
   thinkingSwitch: 'DeepThink',
   deactivatedSearchTooltip: 'Search the web when necessary',

@@ -144,6 +144,8 @@ export const zh = {
   longTextOutlineLabel: '文档结构',
   longTextExcerptsLabel: '相关片段',
   longTextChunkLabel: '片段 {index}',
+  longTextAttachmentUnavailable:
+    '长文本附件《{name}》的本地原件已丢失，无法检索内容，本次请求没有发出。请重新粘贴这段文本后再发送。',
   deactivatedThinkTooltip: '先思考后回答，解决推理问题',
   thinkingSwitch: '深度思考',
   deactivatedSearchTooltip: '按需搜索网页',

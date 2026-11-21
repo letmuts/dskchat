@@ -22,7 +22,7 @@ import {
   prepareDraftMessage,
 } from './drafts.js'
 import { createLatestReminder } from './latestReminder.js'
-import { planLongText, prepareLongTextQuestion } from './longText.js'
+import { LongTextAttachmentError, planLongText, prepareLongTextQuestion } from './longText.js'
 import {
   applyEvent,
   canContinueReply,
@@ -1094,11 +1094,15 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
           break
         }
         if (preparing) {
+          // 长文本附件读不出来时重试没有意义，直接给出具体原因。
+          const unavailable = error instanceof LongTextAttachmentError
           reply = settleReply(reply, 'error', Date.now(), {
             kind: 'upload',
             message: '',
-            localMessage: describeUploadError(error),
-            retryable: isRetryableApiError(error),
+            localMessage: unavailable
+              ? { key: 'longTextAttachmentUnavailable', params: { name: error.fileName } }
+              : describeUploadError(error),
+            retryable: !unavailable && isRetryableApiError(error),
           })
           break
         }

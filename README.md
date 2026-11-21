@@ -6,7 +6,7 @@ dskchat 是一款基于 Rust + Tauri 2 的**非官方 DeepSeek 客户端**。Win
 
 本项目是 DeepSeek API 静态聊天示例（[deepseek-ai/deepseek-chat-demo](https://github.com/deepseek-ai/deepseek-chat-demo)）的 Windows / Android 封装：前端保留在 `web/`，原生外壳在 `src-tauri/`，同一份前端代码可分别构建为纯 Web 站点与 Tauri 应用。
 
-> 当前源码版本 **0.1.2**，以 [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json) 的 `version` 为准；版本口径见 [版本说明](docs/version.md) 与 [配置说明](docs/配置说明.md)。
+> 当前源码版本 **0.1.3**，以 [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json) 的 `version` 为准；版本口径见 [版本说明](docs/version.md) 与 [配置说明](docs/配置说明.md)。
 
 ## 下载安装
 
@@ -23,6 +23,7 @@ Release 提供 Windows 安装包与 Android APK：
 - 多会话、自动标题、重命名与删除；编辑提问、重新生成和切换消息分支。
 - 流式回答、深度思考、智能搜索、链接阅读与来源引用；支持停止生成，以及符合条件的继续生成。
 - 附件上传、粘贴与拖拽，语音输入和回复朗读；移动端录音时输入框首行显示实时频谱。
+- 图片在上传前按长边 2048 缩放压缩（保留透明通道）；超长的粘贴文本自动转存为本地附件，按当前问题检索相关片段后随请求发送。
 - Markdown、代码高亮、KaTeX 公式与 Mermaid 图表。
 - 简体中文与英文、浅色与深色主题、移动端布局、位置设置。
 - 历史导入导出（ZIP），以及“删除所有对话”的本地数据清理。
@@ -91,12 +92,12 @@ API Key 和设置保存在 WebView 的 localStorage（Web 构建是浏览器 pro
 | `%LOCALAPPDATA%\com.letmuts.dskchat` | WebView2 用户数据目录：`localStorage`（API Key、语言、主题等设置）、`IndexedDB`（会话与附件原件）、缓存与 cookie | 首次启动。Tauri 在创建窗口前就建好该目录，不等 WebView2 写入，所以刚建好时可能是空目录；正常跑起来后里面会出现 `EBWebView` 子目录 |
 | `%LOCALAPPDATA%\com.letmuts.dskchat\startup.log` | 启动失败 / panic 记录 | 仅在启动失败时写入 |
 
-- 数据目录名来自 `identifier`；但 `startup.log` 的路径在 [lib.rs](src-tauri/src/lib.rs) 里**硬编码**为 `com.letmuts.dskchat`，改 `identifier` 时必须同步改它，否则排错会指错目录。迁移步骤见 [docs/BRANDING.md](docs/BRANDING.md)。
+- 数据目录名来自 `identifier`；但 `startup.log` 的路径在 [lib.rs](src-tauri/src/lib.rs) 里**硬编码**为 `com.letmuts.dskchat`，改 `identifier` 时必须同步改它，否则排错会指错目录。迁移步骤见[品牌与命名](<docs/chat-demo重命名 .md>)。
 - exe 与 `%LOCALAPPDATA%` 不在同一卷时，[lib.rs](src-tauri/src/lib.rs) 会把 WebView2 数据目录兜底到 exe 同卷的 `.webview2-data/`（设计说明见 [docs/TAURI.md](docs/TAURI.md)）；实际生效位置以该目录内是否出现 `EBWebView` 子目录为准。
 - 退出程序后删除该目录等于清空本地设置、会话与附件缓存，下次启动会重新创建；只想清会话请用设置 → 数据管理 → 删除所有对话。
 - Android 端数据在应用私有目录内（由系统沙箱隔离），不适用上表。
 
-设置中的历史导入导出使用 ZIP（`export_format_version: 3`）。导入会在确认并校验成功后替换全部本地会话和附件；导出包含会话与本地可用的图片原件，不包含 API Key、设置或非图片附件原件。格式与保留范围见[历史导入导出](web/services/chat/history/README.md)。
+设置中的历史导入导出使用 ZIP（`export_format_version: 3`）。导入会在确认并校验成功后替换全部本地会话和附件；导出包含会话与本地可用的图片原件、长文本附件原件，不包含 API Key、设置或其他非图片附件原件。格式与保留范围见[历史导入导出](web/services/chat/history/README.md)。
 
 设置 → 数据管理 → 删除所有对话，会在确认后清空全部本地会话、附件原件和未发送的草稿，停止正在生成的回复并回到新对话。API Key 和其他设置保留，已上传到 API 服务的文件不受影响。
 
@@ -169,7 +170,7 @@ Web 构建不会包含任何 `@tauri-apps` 代码，原生模块开关对它无�
 | `pnpm lint` | oxlint 检查 |
 | `pnpm format` | oxfmt 格式化 |
 
-> 目前所有 Tauri 命令仍由 pnpm 脚本转发；[`docs/version.md`](docs/version.md) 里的“改用 cargo 启动”是 0.1.3 的计划项，尚未落地。
+> 目前所有 Tauri 命令仍由 pnpm 脚本转发；[`docs/version.md`](docs/version.md) 里的“改用 cargo 启动”是 0.1.4 的计划项，尚未落地。
 
 [rspack.config.ts](rspack.config.ts) 默认使用 `https://api.deepseek.com`。可用 `createConfig({ apiOrigin, target, nativeModules, devServer })` 自定义 API 地址、构建目标与原生模块开关。
 
