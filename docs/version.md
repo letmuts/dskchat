@@ -1,8 +1,8 @@
 # 版本说明与开发计划
 - 此文档禁止ai agent进行任何修改，亦不作为开发依据，在修改前必须获得用户明确批准。
 ## 0.1.4（开发中）
+- 0.1.3 识图上传存在缩图错误风险，对于超过8192像素的图片。有存在识别错误的可能。
 - 修复pc端无法点击图片预览以及安卓端无法点开图片的问题。
-- 提高信息上传速度。
 - 修改Android端默认图标
 - 支持pc打包为 MSI 安装包
 - 将pnpm工具链改为cargo工具链启动tauri，解决依赖地狱问题。
@@ -10,7 +10,7 @@
 - 提高项目的规范化水平（编译产物规范命名、配置自动GitHub编译流水线）
 - 规范项目的开发协作
 ......
-## 0.1.3（开发中）
+## 0.1.3
 - 修复传输过长上下文报错的问题：bug：“The image is too large to process: its width and height must each be at most 8192 pixels.”；bug：user input too long, 98431 tokens exceeds max 32768 tokens (request_id: 2befa163-f554-481f-932c-667657400c5d)
 - 规范开发流程：新增dev分支。 
 ## 0.1.2
