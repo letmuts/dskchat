@@ -3,7 +3,7 @@
 本文记录本应用从 **Chat Demo / chat-demo / com.deepseek.chatdemo** 更名为 **dskchat** 的全部约定：
 改了哪些地方、哪些旧名是刻意保留的、对本地数据与安装升级有什么影响，以及将来基于上游模板升级时应该怎么处理。
 
-> 适用版本：`0.1.1`（2026-11-19 完成改名）。
+> 适用版本：`0.1.1` 完成改名，`0.1.2` 复核（2026-11-20）。下文 §2 的改动清单是 0.1.1 的历史记录，链接与命令已按当前仓库更新。
 > 上游模板：[deepseek-ai/deepseek-chat-demo](https://github.com/deepseek-ai/deepseek-chat-demo)（本地快照见 `code/1/chat-demo-main`）。
 > 改名原因：`deskchat` 与其他项目重名；同时把 Android 包名收归到自己的命名空间。
 
@@ -28,7 +28,7 @@
 
 ## 2. 本次改动清单
 
-共 15 个文件、47 行（`git diff --stat`，不含本文件）。按影响面分四组。
+0.1.1 改名共 15 个文件、47 行（`git diff --stat`，不含本文件）。按影响面分四组。
 
 ### 2.1 标识与安装（[tauri.conf.json](../src-tauri/tauri.conf.json)）
 
@@ -67,11 +67,11 @@
 
 | 文件 | 改动 |
 |---|---|
-| [.github/workflows/tauri-desktop.yml](../.github/workflows/tauri-desktop.yml) | exe 路径 `dskchat.exe`；进程名 `dskchat`；`%TEMP%\dskchat.out/.err`；日志路径 `com.letmuts.dskchat\startup.log`；窗口标题断言 `'dskchat'` |
+| [.github/workflows/tauri-desktop.yml.1](../.github/workflows/tauri-desktop.yml.1) | exe 路径 `dskchat.exe`；进程名 `dskchat`；`%TEMP%\dskchat.out/.err`；日志路径 `com.letmuts.dskchat\startup.log`；窗口标题断言 `'dskchat'`（文件当前带 `.1` 后缀，GitHub Actions 不会触发，见 [TAURI.md](./TAURI.md#ci)） |
 | [docs/TAURI.md](./TAURI.md) | 数据目录/日志路径 3 处改为 `com.letmuts.dskchat`；冒烟断言标题改为 `dskchat` |
 | [docs/ANDROID.md](./ANDROID.md) | keystore 示例 alias `chatdemo` → `dskchat`（只是示例名，不影响已生成的 keystore） |
 | [web/services/chat/history/README.md](../web/services/chat/history/README.md) | 项目名叙述 “chat-demo 使用 …” → “dskchat 使用 …”（导出格式 `deepseek_data-*.zip` 不变） |
-| [README.en.md](../README.en.md) / [README.zh-CN.md](../README.zh-CN.md) | 标题与首段品牌名改为 `dskchat` |
+| [README.en.md](../README.en.md) / [README.md](../README.md) | 标题与首段品牌名改为 `dskchat` |
 
 ## 3. 刻意保留的旧名（不要“顺手改掉”）
 
@@ -161,7 +161,7 @@ rg -n 'Chat Demo|chat-demo|chat_demo|chatdemo|Deskchat|com\.deepseek\.chatdemo' 
 预期结果：
 
 - `chat-demo` 只出现在存储键、IndexedDB 名、`PLATFORM_MODULES.md`、`secrets.rs` 注释、上游 URL 中；
-- `Chat Demo`、`chatdemo`、`Deskchat`、`com.deepseek.chatdemo` **应为 0 处**；
+- `Chat Demo`、`chatdemo`、`Deskchat`、`com.deepseek.chatdemo` 只应留在本文的历史记录与迁移说明里，其余位置 **应为 0 处**；
 - 桌面冒烟：进程 `dskchat.exe`、窗口标题 `dskchat`、不产生新的 `startup.log`。
 
 ## 7. 再次改名时的步骤
@@ -174,7 +174,7 @@ rg -n 'Chat Demo|chat-demo|chat_demo|chatdemo|Deskchat|com\.deepseek\.chatdemo' 
 4. 改 [lib.rs](../src-tauri/src/lib.rs)：stderr、错误框标题、`startup.log` 目录（**必须等于 identifier**）；
 5. 改 `web/i18n/*` 的 `appName` 与 `web/index.html` 的 `<title>`；
 6. 改 [package.json](../package.json) 的 `name`/`description`；
-7. 改 CI（exe、进程名、日志路径、窗口标题断言）与 docs/README；
+7. 改 CI（exe、进程名、日志路径、窗口标题断言；当前文件名为 `*.yml.1`，改名启用后才会生效）与 docs/README；
 8. 处理数据迁移：identifier 变了就要按 §4.1 迁移 profile，或明确放弃旧数据；
 9. 跑 §6 验证，并更新本文。
 
@@ -183,3 +183,4 @@ rg -n 'Chat Demo|chat-demo|chat_demo|chatdemo|Deskchat|com\.deepseek\.chatdemo' 
 | 日期 | 版本 | 变更 |
 |---|---|---|
 | 2026-11-19 | 0.1.1 | Chat Demo / chat-demo / com.deepseek.chatdemo → dskchat / dskchat / com.letmuts.dskchat；存储键与导出格式保持不变 |
+| 2026-11-20 | 0.1.2 | 复核命名与文档链接：CI 文件已带 `.1` 后缀、英文 README 为 `README.en.md`、`startup.log` 路径仍为硬编码 |

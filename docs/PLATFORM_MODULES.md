@@ -11,10 +11,11 @@ web/                     前端（React + TS），默认实现全部在 JS
    └─ index.ts           装配：探测外壳、按开关选择实现
 
 src-tauri/               原生外壳（桌面 + Android 共用）
-└─ src/modules/          ← Rust 侧的槽位，一个模块一个文件 + 一个 Cargo feature
+├─ src/modules/          ← Rust 侧的槽位，一个模块一个文件 + 一个 Cargo feature
+└─ vendor/               tauri-plugin-opener 的本地副本（Android 构建需要，见 docs/ANDROID.md）
 ```
 
-> 本文按 `0.1.1` 的代码核对（2026-11-19）；如果正文与实现不一致，以代码为准，并参考文末「已知差异与待办」。
+> 本文按 `0.1.2` 的代码核对（2026-11-20）；如果正文与实现不一致，以代码为准，并参考文末「已知差异与待办」。
 
 ## 三层开关
 
@@ -22,7 +23,7 @@ src-tauri/               原生外壳（桌面 + Android 共用）
 |---|---|---|
 | 构建期目标 | `APP_TARGET=web\|tauri` | 决定 `@native/bridge` 解析到哪个实现。`web` 构建的产物**不包含** `@tauri-apps` 代码 |
 | 构建期模块 | `NATIVE_MODULES=secrets,system` | 本次构建请求哪些原生模块（默认只有 `system`；web 构建默认空。显式设置时 web 构建也会读到，但桥接不可用，最终仍回落） |
-| 编译期 feature | `src-tauri/Cargo.toml` 的 `module-*` | 决定运行时 `registry::enabled()` 的返回值。模块文件始终参与编译；feature 关闭时已注册的命令仍存在，但调用会返回 `disabled` 错误。`module-system` 同时控制可选依赖 `tauri-plugin-opener` |
+| 编译期 feature | `src-tauri/Cargo.toml` 的 `module-*` | 决定运行时 `registry::enabled()` 的返回值。模块文件始终参与编译；feature 关闭时已注册的命令仍存在，但调用会返回 `disabled` 错误。`module-system` 同时控制可选依赖 `tauri-plugin-opener`（路径指向 `src-tauri/vendor/`） |
 
 运行期还可以覆盖：`?native=secrets` 或 `localStorage['chat-demo:native-modules'] = 'secrets,http'`。
 优先级：URL > localStorage > 构建期默认值。

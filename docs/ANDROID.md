@@ -1,6 +1,6 @@
 # Android 打包
 
-Android 是 Tauri 的一等目标，与桌面共用 `src-tauri/` 和同一份前端产物。
+Android 是 Tauri 的一等目标，与桌面共用 `src-tauri/` 和同一份前端产物。`tauri.conf.json` 已声明 `bundle.android.minSdkVersion = 26`（Android 8.0）。
 
 ## 一次性准备
 
@@ -33,10 +33,27 @@ pnpm tauri:android:build     # 生成 APK
 ```
 
 产物位置：`src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk`
+（`output-metadata.json` 里可以看到 `versionName` / `versionCode`，它们来自 `tauri.conf.json` 的 `version`。）
+
+## ABI 与打包目标
+
+`package.json` 里的脚本是 `tauri android build --apk --target aarch64`，**只编译 arm64-v8a**。注意：
+
+- 如果 `gen/android` 里还留着之前 universal 构建的 `jniLibs`，打出来的 APK 可能仍包含旧 ABI；需要干净的单 ABI 包时，先删除 `src-tauri/gen/android/app/src/main/jniLibs` 再构建。
+- 需要模拟器（x86_64）或多个 ABI 时，直接调用 CLI：
+
+  ```sh
+  pnpm tauri android build --apk --target x86_64
+  pnpm tauri android build --apk            # 不指定 --target 时按 Tauri 默认目标集合
+  ```
+
+- 上架 Google Play 用 AAB：
+
+  ```sh
+  pnpm tauri android build --aab
+  ```
 
 ## 与应用相关的原生配置
-
-`tauri.conf.json` 已声明 `bundle.android.minSdkVersion = 26`（Android 8.0）。
 
 权限不需要手工维护：`pnpm tauri:android:init` 会执行 `scripts/patch-android.mjs`，在生成的
 `gen/android/app/src/main/AndroidManifest.xml` 里幂等补上：
@@ -58,6 +75,18 @@ pnpm tauri:android:build     # 生成 APK
 
 安卓 9+ 默认禁止明文 HTTP，本项目只访问 HTTPS，不需要 `usesCleartextTraffic`。
 
+## 内置 opener 插件
+
+`tauri-plugin-opener` 不走 crates.io 版本，而是用 `src-tauri/vendor/tauri-plugin-opener` 的路径依赖。原因：上游 `build.rs` 在 Android 构建时会把 `tauri-api` 复制进 Cargo registry 的插件源码目录，缓存目录只读时直接失败：
+
+```text
+tauri-plugin: failed to copy tauri-api to the plugin project:
+failed to create directory .../tauri-plugin-opener-2.5.4/android/.tauri/tauri-api/:
+拒绝访问。 (os error 5)
+```
+
+改用 vendor 目录后不再写 registry 缓存。升级该插件时同步替换 vendor 内容即可。
+
 ## 导出历史对话（保存文件）
 
 Android WebView 不支持 `a[download]` + `blob:`，导出必须由原生侧落盘：
@@ -78,10 +107,11 @@ Android WebView 不支持 `a[download]` + `blob:`，导出必须由原生侧落�
 keytool -genkey -v -keystore release.keystore -alias dskchat -keyalg RSA -keysize 2048 -validity 10000
 ```
 
-在 `gen/android/app/build.gradle.kts` 里配置 `signingConfigs.release`，然后：
+- `my-release-key.keystore` 已被 `.gitignore` 忽略，**不要提交**；当前工作区里的那份只是本机自用，未入库。
+- 在 `gen/android/app/build.gradle.kts` 里配置 `signingConfigs.release`，然后：
 
 ```sh
-pnpm tauri:android:build            # APK（脚本已带 --apk）
+pnpm tauri:android:build            # APK（脚本已带 --apk --target aarch64）
 pnpm tauri android build --aab      # 上架 Google Play
 ```
 
@@ -89,6 +119,8 @@ pnpm tauri android build --aab      # 上架 Google Play
 
 ## 当前状态
 
-- 本仓库已完成桌面端 release 构建并验证启动（窗口正常出现）；Android 未在本机验证。
-- **Android 未在本机验证**：当前环境没有 JDK / Android SDK / NDK，因此 `gen/android` 需要在装好上述工具后生成。
-  CI 里提供了可直接跑的 `.github/workflows/tauri-android.yml`。
+- 桌面端已完成 release 构建并验证启动（窗口正常出现）。
+- Android 端已在本机产出 release APK（`universal/release`，`versionName 0.1.2`），构建链路（JDK 17 + SDK 34 + NDK 26 + vendored opener）可用；尚未做完整的真机功能回归（录音、历史导出、深链等）。
+- 现有 APK 的 `jniLibs` 里仍保留四个 ABI（历史构建遗留），所以包体较大；删除 `jniLibs` 或用干净的 `gen/android` 重建后，当前脚本只会打入 arm64-v8a。
+- `gen/android` 不入库，换机器或 CI 上先跑 `pnpm tauri:android:init`。
+- CI 里的 `.github/workflows/tauri-android.yml.1` 可执行，但文件名带 `.1`，GitHub Actions 不会自动触发；改名为 `.yml` 后生效。

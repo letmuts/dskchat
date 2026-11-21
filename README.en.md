@@ -1,28 +1,40 @@
 # dskchat
 
-dskchat is a third-party wrapper around `deepseek-ai/deepseek-chat-demo` built on the Rust Tauri framework. No backend configuration is required; the binary runs as-is.
+dskchat is an **unofficial DeepSeek client** built on Rust + Tauri 2. Windows installers and the Android APK work out of the box: there is no backend to run and no build step for users. Install the app, open Settings, and paste a DeepSeek API key. Local storage, Markdown / KaTeX / Mermaid, voice input and read-aloud, and history import/export aim to match the official DeepSeek app and web client.
 
 [简体中文](README.md) | English
 
-A Rust + Tauri Windows / Android wrapper around the DeepSeek API static chat demo ([deepseek-ai/deepseek-chat-demo](https://github.com/deepseek-ai/deepseek-chat-demo)). No build or configuration changes are required: download, install, and enter your API key in Settings.
+The project is a Windows / Android wrapper around the DeepSeek static chat demo ([deepseek-ai/deepseek-chat-demo](https://github.com/deepseek-ai/deepseek-chat-demo)): the frontend lives in `web/` and the native shell in `src-tauri/`. The same frontend builds either as a plain static site or as a Tauri app.
+
+> Current source version: **0.1.2**, taken from `version` in [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json). See [version notes (Chinese)](docs/version.md) and [configuration notes (Chinese)](docs/配置说明.md).
 
 ## Download and install
 
-Release builds are available as Windows installers (NSIS / MSI) and an Android APK:
+Download: <https://github.com/letmuts/dskchat/releases>
 
-- **Windows**: download the NSIS / MSI installer and run it. Windows 10/11 is required. WebView2 is preinstalled on Windows 11; most Windows 10 devices already have it via Edge / Windows Update, and the installer downloads it when missing.
-- **Android**: download and install the APK. Android 8.0 (API 26) or later is required; allow installation from unknown sources on first install.
-- **First use**: open Settings and enter your DeepSeek API key. The key is stored only in the local WebView localStorage (plain text; the OS keychain slot is not implemented yet) and is sent to the configured API service along with chat requests. See [Data](#data).
+Releases provide a Windows installer and an Android APK:
 
-> The Windows installer is not code-signed, so SmartScreen may warn; on Android, allow installation from unknown sources.
+- **Windows**: download the exe and run it. Windows 10/11 is required. WebView2 ships with Windows 11; most Windows 10 devices already have it through Edge / Windows Update, and the installer downloads it when missing. The installer is not code-signed, so SmartScreen may warn.
+- **Android**: download and install the APK. Android 8.0 (API 26) or later is required, and installation from unknown sources must be allowed on first install. The repository's `pnpm tauri:android:build` currently targets `aarch64` only; see [Android packaging (Chinese)](docs/ANDROID.md) for other ABIs.
+- **First use**: open Settings and enter the DeepSeek API key. The key is stored only in the local WebView localStorage (plain text; the OS keychain slot is not implemented yet) and is sent to the configured API service with chat requests. See [Data and privacy](#data-and-privacy).
+
+## Features
+
+- Multiple conversations with automatic titles, renaming, and deletion; edit prompts, regenerate replies, and switch between message branches.
+- Streaming replies, deep thinking, smart search, link reading, and source citations; stop generation, and continue eligible replies.
+- Upload, paste, or drag and drop attachments; voice input and read-aloud replies. A live audio spectrum appears in the first row of the input area while recording on mobile.
+- Markdown, syntax highlighting, KaTeX math, and Mermaid diagrams.
+- Simplified Chinese and English, light and dark themes, mobile layouts, and location settings.
+- ZIP history import/export, plus "delete all chats" for local cleanup.
 
 ## Project structure
-
-#### Directory layout
 
 ```text
 package.json / pnpm-lock.yaml   Frontend dependencies and scripts
 rust-toolchain.toml             Pinned Rust toolchain
+rspack.config.ts                Frontend bundling (Web / Tauri targets)
+app-icon.png                    Icon source; icons/ is generated from it
+
 web/                            Frontend (React + TypeScript)
   app/                          Layout, theme, and viewport handling
   components/                   Chat, settings, and Markdown UI
@@ -38,47 +50,53 @@ web/                            Frontend (React + TypeScript)
 src-tauri/                      Native shell (desktop + Android)
   Cargo.toml / Cargo.lock       Rust dependencies and module features
   src/modules/                  Rust module slots, one Cargo feature per module
-  tauri.conf.json               Window, CSP, bundle targets
-  capabilities/                 IPC permissions
+  vendor/tauri-plugin-opener/    Vendored opener plugin (see note below)
+  tauri.conf.json               Window, CSP, bundle targets, Android minSdk
+  capabilities/                 IPC permissions (core:default only)
   icons/                        App icons per platform
+  gen/                          Android project generated by tauri android init (not tracked)
 
-docs/                           Tauri, platform-module, and Android documentation
+permissions/autogenerated/      Tauri-generated permission reference and command list
+docs/                           Tauri, platform-module, Android, branding, and version docs
 scripts/                        Android permission patch and CI helpers
-.github/workflows/              Desktop, Android, and GitHub Pages CI
+.github/workflows/              CI definitions (currently suffixed .1; rename to enable)
 ```
 
-#### Tech stack details
+> **Why `tauri-plugin-opener` is vendored**: the crates.io build script copies `tauri-api` into the Cargo registry cache during Android builds, which fails with `access denied (os error 5)` on read-only caches. The repository vendors it under `src-tauri/vendor/` and depends on it by path so Android builds are reproducible.
 
-- **Frontend**: React 18 + TypeScript, bundled by rspack; state via zustand; Markdown through micromark / mdast, syntax highlighting with Prism, math with KaTeX, diagrams with Mermaid; IndexedDB (idb) for local storage and fflate for ZIP history import/export.
-- **Desktop / Android**: Tauri 2 (Rust). Desktop uses the system WebView2 with no bundled runtime; the shell is single-instance, writes `startup.log` and shows a native error dialog on startup failure, and moves the WebView2 data folder to a directory on the same volume when the program is installed on a non-system drive.
-- **Native modules**: only `system` (opening external links) is implemented. `secrets`, `http`, `storage`, `archive`, and `search` are contracts / placeholders; wired modules fall back to the Web implementation automatically, and unwired ones stay on the Web side. See [Platform module slots](docs/PLATFORM_MODULES.md) for the table.
-- **Versions**: Rust 1.99.1 (pinned by `rust-toolchain.toml`), `tauri` 2.11.5, `@tauri-apps/api` 2.11.1, and `@tauri-apps/cli` 2.11.3; `Cargo.lock` and `pnpm-lock.yaml` pin the dependency graph.
+## Tech stack and versions
 
-#### Features
+- **Frontend**: React 18 + TypeScript, bundled by rspack 2; state via zustand; Markdown through micromark / mdast, syntax highlighting with Prism, math with KaTeX, diagrams with Mermaid; IndexedDB (idb) for local storage and fflate for ZIP history import/export.
+- **Desktop / Android**: Tauri 2 (Rust). Desktop uses the system Evergreen WebView2 with no bundled runtime; the shell is single-instance, writes `startup.log` and shows a native error dialog on startup failure, and moves the WebView2 data folder to `.webview2-data/` on the executable's volume when installed on a non-system drive.
+- **Native modules**: only `system` (opening external links / saving files) is implemented. `secrets`, `http`, `storage`, `archive`, and `search` are contracts or placeholders; wired modules fall back to the Web implementation. See [Platform module slots (Chinese)](docs/PLATFORM_MODULES.md).
+- **Pinned versions** (see `Cargo.lock` / `pnpm-lock.yaml`):
 
-- Multiple conversations with automatic titles, renaming, and deletion; edit prompts, regenerate replies, and switch between message branches.
-- Streaming replies, deep thinking, smart search, link reading, and source citations; stop generation or continue eligible replies.
-- Upload, paste, or drag and drop attachments; voice input and read-aloud replies. A live audio spectrum appears in the first row of the input area while recording on mobile.
-- Markdown, syntax highlighting, KaTeX math, and Mermaid diagrams.
-- Simplified Chinese and English, light and dark themes, mobile layouts, location settings, and chat history import and export.
+| Component | Version |
+|---|---|
+| Rust toolchain | 1.99.1 (pinned by `rust-toolchain.toml`) |
+| `tauri` / `tauri-build` | 2.12.0 / 2.7.0 |
+| `wry` / `tao` / `webview2-com` | 0.57.3 / 0.37.3 / 0.39.1 |
+| `tauri-plugin-opener` / `tauri-plugin-single-instance` | 2.5.4 (vendored) / 2.5.5 |
+| `@tauri-apps/api` / `@tauri-apps/cli` | 2.12.5 / 2.12.6 |
+| Node.js / pnpm | 22.12+ / 10 |
 
-#### Data
+## Data and privacy
 
 The API key and settings are stored in the WebView's localStorage (the browser profile on the Web build, the WebView2 profile on desktop). The native OS keychain slot is not implemented yet, so the key is stored as plain text. Conversations and original attachments are stored in IndexedDB, isolated by browser profile and site origin. Sending messages, uploading attachments, and using speech features sends the relevant content to the configured API service.
 
-On Windows the on-disk location is derived from `identifier`, so the directory is named `com.letmuts.dskchat`:
+On Windows the WebView2 data folder is derived from `identifier` in [tauri.conf.json](src-tauri/tauri.conf.json), so the directory is named `com.letmuts.dskchat`:
 
 | Path | Contents | When it appears |
 |---|---|---|
-| `%LOCALAPPDATA%\com.letmuts.dskchat\` | WebView2 user data folder: `localStorage` (API key, language, theme, and other settings), `IndexedDB` (conversations and original attachments), cache, and cookies | On first launch. Tauri creates it before the window is created, so it can be empty right after creation; once the app runs normally an `EBWebView` subdirectory appears inside it |
+| `%LOCALAPPDATA%\com.letmuts.dskchat` | WebView2 user data folder: `localStorage` (API key, language, theme, and other settings), `IndexedDB` (conversations and original attachments), cache, and cookies | On first launch. Tauri creates it before the window is created, so it can be empty right after creation; once the app runs normally an `EBWebView` subdirectory appears inside it |
 | `%LOCALAPPDATA%\com.letmuts.dskchat\startup.log` | Startup failure / panic log | Written only when startup fails |
 
-- The directory name comes from `identifier` in [tauri.conf.json](src-tauri/tauri.conf.json); changing it moves the app to a new directory and old data is not migrated (see [docs/BRANDING.md](docs/BRANDING.md)).
+- The data folder name comes from `identifier`, but the `startup.log` path is **hard-coded** in [lib.rs](src-tauri/src/lib.rs) as `com.letmuts.dskchat`. Update it together with `identifier`, or troubleshooting will point at the wrong directory. See [docs/BRANDING.md](docs/BRANDING.md) for migration steps.
 - When the executable and `%LOCALAPPDATA%` are on different volumes, [lib.rs](src-tauri/src/lib.rs) falls back to `.webview2-data/` on the executable's volume (design notes in [docs/TAURI.md](docs/TAURI.md)); confirm the effective location by checking whether an `EBWebView` subdirectory shows up there.
 - After quitting the app, deleting that directory clears local settings, conversations, and attachment cache; it is recreated on the next launch. To clear only conversations, use Settings → Data → Delete all chats.
 - Android data lives in the app's private directory (isolated by the OS sandbox) and is not covered by the table above.
 
-History import and export in Settings use ZIP archives. After confirmation and successful validation, importing replaces all local conversations and attachments. Exports include conversations and locally available original images, but exclude the API key, settings, and original non-image attachments. See the [history import/export documentation (Chinese)](web/services/chat/history/README.md) for the archive format and preservation details.
+History import and export in Settings use ZIP archives (`export_format_version: 3`). After confirmation and successful validation, importing replaces all local conversations and attachments. Exports include conversations and locally available original images, but exclude the API key, settings, and original non-image attachments. See the [history import/export documentation (Chinese)](web/services/chat/history/README.md) for the archive format and preservation details.
 
 Settings → Data → Delete all chats clears all local conversations, original attachments, and unsent drafts after confirmation. It stops ongoing replies and returns to a new chat. The API key and other settings are preserved; files already uploaded to the API service are not deleted.
 
@@ -91,16 +109,19 @@ Settings → Data → Delete all chats clears all local conversations, original 
 | Linux | Rust, `libwebkit2gtk-4.1-dev`, `librsvg2-dev`, `libdbus-1-dev`, `patchelf` |
 | Android | JDK 17, Android SDK 34, NDK 26, and the four Rust Android targets |
 
-#### Windows
+### Windows
 
 ```sh
 pnpm install
 pnpm tauri:build
 ```
 
-Artifacts are written to `src-tauri/target/release/bundle/`: `nsis/*.exe` and `msi/*.msi`. The first build downloads NSIS / WiX over the network; use `pnpm tauri:dev` for desktop development.
+- Executable: `src-tauri/target/release/dskchat.exe`
+- Installers: `src-tauri/target/release/bundle/nsis/*.exe` and `bundle/msi/*.msi` ([`bundle.targets`](src-tauri/tauri.conf.json) is `all`, so Windows attempts both NSIS and MSI).
+- The first bundle downloads NSIS / WiX over the network. On a restricted network the bundle step fails with ``failed to bundle project: `timeout: global` ``; the exe is already built, and `pnpm tauri build --bundles nsis` builds NSIS only.
+- Use `pnpm tauri:dev` for desktop development.
 
-#### Linux
+### Linux
 
 ```sh
 sudo apt-get update
@@ -111,7 +132,7 @@ pnpm exec tauri build --bundles deb,rpm
 
 Artifacts are written to `src-tauri/target/release/bundle/deb/` and `rpm/`. Without `--bundles`, the build also attempts an AppImage, which needs extra tooling; specifying the bundles explicitly is recommended.
 
-#### Android
+### Android
 
 ```sh
 rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
@@ -119,33 +140,71 @@ pnpm tauri:android:init
 pnpm tauri:android:build
 ```
 
-`tauri:android:init` runs `scripts/patch-android.mjs` to add `RECORD_AUDIO` / `INTERNET` automatically; the APK is written to `src-tauri/gen/android/app/build/outputs/apk/universal/release/`. For Google Play, build an AAB with `pnpm tauri android build --aab`; see [Android packaging](docs/ANDROID.md) for signing.
+`tauri:android:init` runs `scripts/patch-android.mjs` to add `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, and `INTERNET`. The APK is written to `src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk`.
+
+`tauri:android:build` is `tauri android build --apk --target aarch64`, so it compiles arm64-v8a only. For Google Play, build an AAB with `pnpm tauri android build --aab` (without `--target`, the compiled target set is Tauri's default). See [Android packaging (Chinese)](docs/ANDROID.md) for signing and ABI details.
+
+### Static web build
+
+```sh
+pnpm build       # outputs to dist/; deploy as a static site
+```
+
+The Web build contains no `@tauri-apps` code; native module switches do not apply to it.
 
 ## Development
 
-| Command                    | Description                         |
-| -------------------------- | ----------------------------------- |
-| `pnpm install`             | Install dependencies                |
-| `pnpm dev`                 | Start the Web dev server (8090)     |
-| `pnpm build`               | Build the static site into `dist/`  |
-| `pnpm build:tauri`         | Build the frontend for the shell    |
-| `pnpm tauri:dev`           | Desktop dev (rspack + window)       |
-| `pnpm tauri:build`         | Desktop installers                  |
-| `pnpm tauri:android:init`  | Generate the Android project        |
-| `pnpm tauri:android:build` | Android APK                         |
-| `pnpm type`                | Run TypeScript type checks          |
-| `pnpm lint`                | Lint with oxlint                    |
-| `pnpm format`              | Format with oxfmt                   |
+| Command | Description |
+|---|---|
+| `pnpm install` | Install dependencies |
+| `pnpm dev` | Start the Web dev server (8090) |
+| `pnpm build` | Build the static site into `dist/` |
+| `pnpm build:tauri` | Build the frontend for the shell |
+| `pnpm tauri:dev` | Desktop dev (rspack + window) |
+| `pnpm tauri:build` | Desktop installers |
+| `pnpm tauri:android:init` | Generate the Android project |
+| `pnpm tauri:android:dev` | Device / emulator debugging |
+| `pnpm tauri:android:build` | Android APK (aarch64) |
+| `pnpm type` | Run TypeScript type checks |
+| `pnpm lint` | Lint with oxlint |
+| `pnpm format` | Format with oxfmt |
 
-[rspack.config.ts](rspack.config.ts) uses `https://api.deepseek.com` by default. Use `createConfig({ apiOrigin, target, nativeModules, devServer })` to customize the API origin, the build target, and the native module switches.
+> Tauri commands are still forwarded through pnpm scripts. The "switch to cargo" item in [`docs/version.md`](docs/version.md) is a 0.1.3 plan and has not landed.
 
-Chat uses `deepseek-flash` by default through Anthropic-compatible Messages / Files APIs; speech features use ASR / TTS endpoints. Requests include extensions for search, link reading, titles, and `latest_reminder`, so the configured service must support the corresponding capabilities. Supported attachment formats are determined by server-side validation.
+[rspack.config.ts](rspack.config.ts) uses `https://api.deepseek.com` by default. Use `createConfig({ apiOrigin, target, nativeModules, devServer })` to customize the API origin, build target, and native module switches.
+
+## API
+
+- Chat is fixed to `deepseek-flash` ([`web/services/chat/store.ts`](web/services/chat/store.ts)) and uses the Anthropic-compatible `/anthropic/v1/messages` and `/anthropic/v1/files` endpoints; speech uses `/v1/tools/asr` and `/v1/tools/tts`.
+- Requests also carry extensions for search, link reading, titles, and `latest_reminder`, so the configured service must support the corresponding capabilities.
+- Supported attachment formats are determined by server-side validation. When changing the request origin, update `connect-src` in [tauri.conf.json](src-tauri/tauri.conf.json) too, or CSP silently blocks the request.
 
 ## CI
 
-- `.github/workflows/tauri-desktop.yml`: Windows NSIS/MSI with a startup smoke test, macOS universal DMG, and Linux deb/rpm.
-- `.github/workflows/tauri-android.yml`: Android APK.
-- `.github/workflows/pages.yml`: static site deployed to GitHub Pages.
+The three workflows under `.github/workflows/` are currently named `*.yml.1` (`tauri-desktop.yml.1`, `tauri-android.yml.1`, `pages.yml.1`). GitHub Actions does not recognize those names, so pushes and tags trigger no build. Rename them to `.yml` to enable:
+
+- `tauri-desktop.yml`: Windows (NSIS + MSI, with a startup smoke test), macOS universal DMG, and Linux deb / rpm; also runs `pnpm type`, `pnpm lint`, and `cargo metadata --locked`.
+- `tauri-android.yml`: Android APK (runs `tauri:android:init` on every machine).
+- `pages.yml`: builds the static site and deploys it to GitHub Pages on pushes to `main`.
+
+> `pages.yml.1` pins Node 24 and pnpm 12.6, while the repository requires Node 22 / pnpm 10. Align the versions before enabling it.
+
+## Documentation
+
+- [Tauri shell (Chinese)](docs/TAURI.md): layout, runtime strategy, version locks, CSP, CI, troubleshooting.
+- [Android packaging (Chinese)](docs/ANDROID.md): SDK / NDK, permissions, saving files, signing.
+- [Platform module slots (Chinese)](docs/PLATFORM_MODULES.md): TS ↔ Rust contracts and wiring rules.
+- [Branding and naming (Chinese)](docs/BRANDING.md): display name, data directory, and migration.
+- [Version notes (Chinese)](docs/version.md) and [configuration notes (Chinese)](docs/配置说明.md).
+- [History import/export (Chinese)](web/services/chat/history/README.md).
+
+## Roadmap
+
+See [version notes (Chinese)](docs/version.md).
+
+## Contributing
+
+The project exists to serve a lightweight, personal DeepSeek workflow and is intentionally small. Issues and contributions are welcome. See the [contribution guidelines (Chinese)](<docs/协作规范（草稿）.md>).
 
 ## License
 
