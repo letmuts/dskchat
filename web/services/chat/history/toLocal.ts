@@ -41,6 +41,7 @@ const toFile = (file: FileEntry): FileAttachment => ({
   isImage: file.is_image,
   // 图片身份来自归档；原件随后从 ZIP 读取后补充具体 MIME。
   mimeType: '',
+  ...(file.is_retrieval ? { retrieval: true } : {}),
 })
 
 const toUser = (message: ChatMessage): UserMessage => ({
@@ -295,7 +296,7 @@ export const toLocalSession = (file: SessionFile): LocalSession => {
         continue
       }
       for (const entry of item.files) {
-        if (!entry.is_image) {
+        if (!entry.is_image && !entry.is_retrieval) {
           continue
         }
         // 读取端把条目名规范为 NFC，引用也按同样规则比较。

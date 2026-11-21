@@ -12,8 +12,13 @@ import type {
   SessionIndexEntry,
 } from './format.js'
 
-/** 返回图片原件在 ZIP 里的条目名；无原件或非图片附件返回 null，仅导出元数据。 */
-export type ExportImage = (file: { id: string; name: string; isImage: boolean }) => string | null
+/** 返回图片或长文本原件在 ZIP 里的条目名；无原件或其他附件返回 null，仅导出元数据。 */
+export type ExportImage = (file: {
+  id: string
+  name: string
+  isImage: boolean
+  retrieval?: boolean
+}) => string | null
 
 const iso = (ms: number) => new Date(ms).toISOString()
 
@@ -32,8 +37,14 @@ const userFragments = (message: UserMessage, exportImage: ExportImage): Fragment
       file_size: file.size,
       token_usage: null,
       inserted_at: iso(message.createdAt),
-      export_path: exportImage({ id: file.id, name: file.name, isImage }),
+      export_path: exportImage({
+        id: file.id,
+        name: file.name,
+        isImage,
+        retrieval: file.retrieval,
+      }),
       is_image: isImage,
+      ...(file.retrieval ? { is_retrieval: true } : {}),
       width: null,
       height: null,
     }

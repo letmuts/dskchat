@@ -4,7 +4,13 @@ import { ApiError } from '../api/client.js'
 import { platform } from '../../platform/index.js'
 import type { ChatModel, CreateMessageRequest } from '../api/types.js'
 import { extractFileIds, getFileErrorCode, isRetryableApiError } from '../api/errors.js'
-import { cancelUpload, describeUploadError, uploadAttachment, useUploads } from '../attachments.js'
+import {
+  cancelUpload,
+  checkImageFileIds,
+  describeUploadError,
+  uploadAttachment,
+  useUploads,
+} from '../attachments.js'
 import { useSettings } from '../settings.js'
 import { appendBranch, getVisibleMessages, normalizeSession, selectVersion } from './branches.js'
 import type { StoredFile } from './db.js'
@@ -16,6 +22,7 @@ import {
   prepareDraftMessage,
 } from './drafts.js'
 import { createLatestReminder } from './latestReminder.js'
+import { planLongText, prepareLongTextQuestion } from './longText.js'
 import {
   applyEvent,
   canContinueReply,
@@ -411,7 +418,9 @@ export const replaceHistory = async (write: () => Promise<void>): Promise<number
       await write()
       summaries = await platform.storage.commitStaging()
     } catch (error) {
-      await platform.storage.clearStaging().catch(platform.storage.reportStorageError('clear unfinished history replacement'))
+      await platform.storage
+        .clearStaging()
+        .catch(platform.storage.reportStorageError('clear unfinished history replacement'))
       throw error
     }
     sessionAccess.clear()
@@ -474,7 +483,9 @@ export const renameSession = (id: string, title: string) => {
         session.id === id ? { ...session, title } : session
       ),
     }))
-    void platform.storage.renameSession(id, title).catch(platform.storage.reportStorageError('rename session'))
+    void platform.storage
+      .renameSession(id, title)
+      .catch(platform.storage.reportStorageError('rename session'))
   }
 }
 
@@ -585,17 +596,23 @@ export const sendMessage = (targetSessionId: string | null) => {
     return false
   }
   const history = getVisibleMessages(current)
+  // 超过请求预算的粘贴文本转成本地检索附件；会话里只保留短问题和附件卡片。
+  const longText = planLongText(text, history)
+  const messageFiles = longText ? [...files, longText.file] : files
   const question: UserMessage = {
     id: createId(),
     role: 'user',
-    content: text,
-    files: files.map(({ id, serverId, name, size, isImage, mimeType }) => ({
+    content: longText?.content ?? text,
+    files: messageFiles.map(({ id, serverId, name, size, isImage, mimeType, retrieval }) => ({
       id,
       serverId,
+      // 草稿附件已上传成功，图片在上传前已经检查并缩放。
+      imageSizeChecked: isImage,
       name,
       size,
       isImage,
       mimeType,
+      ...(retrieval ? { retrieval } : {}),
     })),
     createdAt: now,
   }
@@ -604,10 +621,11 @@ export const sendMessage = (targetSessionId: string | null) => {
     ...appendBranch(session, history.at(-1)?.id ?? null, [question, reply]),
     updatedAt: now,
   }))
-  if (files.length > 0) {
+  if (messageFiles.length > 0) {
     pendingFiles.set(sessionId, [
       ...(pendingFiles.get(sessionId) ?? []),
       ...files.map(({ id, blob }) => ({ id, blob })),
+      ...(longText ? [{ id: longText.file.id, blob: longText.blob }] : []),
     ])
   }
   persist(sessionId)
@@ -752,8 +770,11 @@ export const retryUpload = (sessionId: string, messageId: string) => {
 
 type Request = { history: Message[]; question: UserMessage; prefix?: AssistantMessage }
 
-/** 把补传得到的 serverId 写回会话里所有引用同一附件的消息（编辑、重新生成会共用附件） */
-const saveServerIds = (sessionId: string, serverIds: Map<string, string>) => {
+/**
+ * 把补传得到的 serverId 写回会话里所有引用同一附件的消息（编辑、重新生成会共用附件）。
+ * 传入 null 会清除超限旧图的 ID，触发补传；尺寸标记随有效 ID 保存。
+ */
+const saveServerIds = (sessionId: string, serverIds: ReadonlyMap<string, string | null>) => {
   if (serverIds.size === 0) {
     return
   }
@@ -763,9 +784,16 @@ const saveServerIds = (sessionId: string, serverIds: Map<string, string>) => {
       message.role === 'user' && message.files.some((file) => serverIds.has(file.id))
         ? {
             ...message,
-            files: message.files.map((file) =>
-              serverIds.has(file.id) ? { ...file, serverId: serverIds.get(file.id) ?? null } : file
-            ),
+            files: message.files.map((file) => {
+              const serverId = serverIds.get(file.id)
+              return serverId === undefined
+                ? file
+                : {
+                    ...file,
+                    serverId,
+                    imageSizeChecked: file.isImage && serverId !== null,
+                  }
+            }),
           }
         : message
     ),
@@ -778,6 +806,10 @@ const saveServerIds = (sessionId: string, serverIds: Map<string, string>) => {
  * 本地也没有原件（导入的文档附件只有元数据）时返回 null，该附件只展示、不进入请求。
  */
 const ensureServerId = async (apiKey: string, file: FileAttachment): Promise<string | null> => {
+  // 长文本检索附件只保存在本地，不进入 Files API；其内容由检索片段进入请求。
+  if (file.retrieval) {
+    return null
+  }
   if (file.serverId) {
     return file.serverId
   }
@@ -825,10 +857,20 @@ const prepareFiles = async (sessionId: string, request: Request, signal: AbortSi
   const aborted = new Promise<never>((_, reject) => {
     signal.addEventListener('abort', () => reject(signal.reason), { once: true })
   })
+  // 旧图片超限时先清除 ID，交给下方已有的附件补传流程；长文本检索附件不参与上传。
+  const files = [
+    ...request.question.files,
+    ...getContextRounds(request.history).flatMap(([user]) => user.files),
+  ]
+  const checked = await Promise.race([checkImageFileIds(files, signal), aborted])
+  if (checked.size > 0) {
+    saveServerIds(sessionId, checked)
+    request = refreshRequest(sessionId, request)
+  }
   const uploads = Promise.allSettled(
     request.question.files.map(async (file) => {
       const serverId = await ensureServerId(apiKey, file)
-      if (serverId) {
+      if (serverId && serverId !== file.serverId) {
         serverIds.set(file.id, serverId)
       }
     })
@@ -847,6 +889,9 @@ const prepareFiles = async (sessionId: string, request: Request, signal: AbortSi
   const pending = new Map<string, FileAttachment>()
   for (const [user] of getContextRounds(request.history).toReversed()) {
     for (const file of user.files) {
+      if (file.retrieval) {
+        continue
+      }
       if (!file.serverId && !serverIds.has(file.id) && !pending.has(file.id)) {
         pending.set(file.id, file)
       }
@@ -881,7 +926,7 @@ const collectServerFileIds = (request: Request): Set<string> => {
   const ids = new Set<string>()
   const add = (files: FileAttachment[]) => {
     for (const file of files) {
-      if (file.serverId) {
+      if (!file.retrieval && file.serverId) {
         ids.add(file.serverId)
       }
     }
@@ -922,9 +967,12 @@ const reuploadInvalidatedFiles = (sessionId: string, request: Request, error: un
       if (!file.serverId || !targets.has(file.serverId)) {
         return file
       }
+      if (file.retrieval) {
+        return file
+      }
       localIds.push(file.id)
       changed = true
-      return { ...file, serverId: null }
+      return { ...file, serverId: null, imageSizeChecked: false }
     })
     return changed ? { ...message, files } : message
   })
@@ -982,6 +1030,12 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
       let receivedContent = false
       try {
         const prepared = await prepareFiles(sessionId, request, controller.signal)
+        // 长文本附件在这里按当前问题检索片段；只影响本次请求，不改写已保存消息。
+        const question = await prepareLongTextQuestion(
+          prepared.question,
+          prepared.history,
+          controller.signal
+        )
         preparing = false
         // 附件就绪后获取本轮信息；续写沿用原回答快照，重新生成的快照独立保存。
         const latestReminder = prepared.prefix
@@ -992,7 +1046,7 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
         persist(sessionId)
         const messages = toRequestMessages(
           prepared.history,
-          prepared.question,
+          question,
           prepared.prefix,
           initial.thinking ?? false,
           latestReminder

@@ -165,11 +165,13 @@ export type FileEntry = {
   /** 图片导出成功时为 ZIP 条目名，否则为 null；条目也可能不存在 */
   export_path: string | null
   is_image: boolean
+  /** 本地长文本检索附件；导出时随会话目录保存原文，导入后仍走检索而不是 document 块。 */
+  is_retrieval?: boolean
   width: number | null
   height: number | null
 }
 
-/** 非图片文件只有元数据，本体不在产物里 */
+/** 非图片、非长文本检索附件只有元数据，本体不在产物里 */
 export type FileFragment = { type: 'FILE'; files: FileEntry[] }
 
 export type ImageSearchStatus = SearchStatus

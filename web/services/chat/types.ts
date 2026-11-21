@@ -17,12 +17,19 @@ import type {
 export type FileAttachment = {
   id: string
   serverId: string | null
+  /** 当前 serverId 对应的上传图片已确认符合长边限制；旧记录没有此字段。 */
+  imageSizeChecked?: boolean
   name: string
   size: number
   /** 附件类别；导入时沿用归档的 is_image，不由 MIME 识别结果决定。 */
   isImage: boolean
   /** 具体 MIME；导入时没有原件或无法识别的为空字符串，不影响图片身份。 */
   mimeType: string
+  /**
+   * 长文本检索附件：原件只保存在本地，不进入 Files API，也不作为 document 块回传。
+   * 发送时按当前问题检索相关片段，只把这些片段拼进请求。
+   */
+  retrieval?: boolean
 }
 
 /** 本地消息的分支关系；字段缺省时按线性消息列表处理。 */

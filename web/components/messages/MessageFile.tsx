@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
 import { useUploads } from '../../services/attachments.js'
 import { platform } from '../../platform/index.js'
+import { getLongTextBlob } from '../../services/chat/longText.js'
 import type { FileAttachment } from '../../services/chat/types.js'
 import { IconPhotoErrorFill20, IconRefreshOutline16 } from '../base/icons.js'
 import { Tooltip } from '../base/Tooltip.js'
@@ -15,6 +16,17 @@ const useFileUrl = (id: string) => {
   useEffect(() => {
     let objectUrl: string | null = null
     let cancelled = false
+    // 长文本刚发出时可能还没完成 IndexedDB 落盘，先读内存缓存，避免卡片闪成“原件缺失”。
+    const cached = getLongTextBlob(id)
+    if (cached) {
+      const url = URL.createObjectURL(cached)
+      objectUrl = url
+      setFileUrl({ id, url })
+      return () => {
+        cancelled = true
+        URL.revokeObjectURL(url)
+      }
+    }
     platform.storage.loadFile(id).then((blob) => {
       if (!cancelled) {
         objectUrl = blob ? URL.createObjectURL(blob) : null

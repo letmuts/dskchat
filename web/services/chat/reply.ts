@@ -18,10 +18,11 @@ import type {
 /**
  * 文件按 Files API 的 file_id（附件的 serverId）引用：图片用 image 块，其余用 document 块。
  * 发送前 streamReply 会先补齐 serverId；仍为 null 的是本地没有原件的附件，不进入请求。
+ * 长文本检索附件只以检索片段进入当前文本，不能作为 document 块发送（服务端会完整注入全文）。
  */
 const toFileBlocks = (files: FileAttachment[]): FileBlockParam[] =>
-  files.flatMap(({ serverId, isImage }) =>
-    serverId
+  files.flatMap(({ serverId, isImage, retrieval }) =>
+    serverId && !retrieval
       ? [
           {
             type: isImage ? 'image' : 'document',
@@ -185,8 +186,7 @@ export const canContinueReply = (reply: AssistantMessage): boolean => {
     return false
   }
   return (
-    reply.status === 'stopped' ||
-    (reply.status === 'done' && reply.stopReason === 'max_tokens')
+    reply.status === 'stopped' || (reply.status === 'done' && reply.stopReason === 'max_tokens')
   )
 }
 
